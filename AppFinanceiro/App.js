@@ -1,10 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useEffect, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import "react-native-get-random-values";
+import Toast from 'react-native-toast-message';
+import AddEnvelope from './src/add';
+import ListEnvelopes from './src/list';
 
 export function Painel() {
   const [acess, setAcess] = useState(false);
+  const [envelopes, setEnvelopes] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -17,14 +23,51 @@ export function Painel() {
     })();
   }, []);
 
+  const addEnvelope = (nome) => {
+    if (nome === '') {
+      Toast.show({
+        type: 'error',
+        text1: 'Nome Vazio',
+        text2: 'Por favor, digite um nome para o envelope.'
+      });
+    } else {
+      const novoEnvelope = {
+        id: uuidv4(),
+        nome: nome,
+      };
+      setEnvelopes([novoEnvelope, ...envelopes]);
+      Toast.show({
+        type: 'success',
+        text1: 'Sucesso',
+        text2: 'Envelope criado!'
+      });
+    }
+  };
+
+  const deleteEnvelope = (id) => {
+    const novaLista = envelopes.filter((item) => item.id !== id);
+    setEnvelopes(novaLista);
+    Toast.show({
+      type: 'success',
+      text1: 'Sucesso',
+      text2: 'Envelope deletado!'
+    });
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.painelContainer}>
       {acess ? (
-        <Text style={styles.textoSucesso}>Acesso Permitido</Text>
+        <View style={styles.innerPainel}>
+          <Text style={styles.sectionTitle}>Meus Envelopes</Text>
+          <AddEnvelope addEnvelope={addEnvelope} />
+          <ListEnvelopes deleteEnvelope={deleteEnvelope} envelopes={envelopes} />
+        </View>
       ) : (
-        <Text style={styles.textoErro}>A Autenticação Falhou</Text>
+        <View style={styles.centerContent}>
+          <Text style={styles.textoErro}>A Autenticação Falhou</Text>
+        </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -41,36 +84,55 @@ export default function App() {
     })();
   }, []);
 
-  if (render) {
-    return (
-      <Painel />
-    );
-  } else {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.textoAviso}>
-          {biometria
-            ? 'Faça o login com biometria'
-            : 'Aparelho não compativel com biometria'
-          }
-        </Text>
+  return (
+    <View style={styles.container}>
+      {render ? (
+        <Painel />
+      ) : (
+        <View style={styles.centerContent}>
+          <Text style={styles.textoAviso}>
+            {biometria
+              ? 'Faça o login com biometria'
+              : 'Dispositivo não compatível com biometria'
+            }
+          </Text>
 
-        <TouchableOpacity style={styles.botao} onPress={changeRender}>
-          <Text style={styles.textoBotao}>Entrar</Text>
-        </TouchableOpacity>
-        
-        <StatusBar style="auto" />
-      </View>
-    );
-  }
+          <TouchableOpacity style={styles.botao} onPress={changeRender}>
+            <Text style={styles.textoBotao}>Entrar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      <Toast position='top' bottomOffset={20} />
+      <StatusBar style="auto" />
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  centerContent: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  painelContainer: {
+    flex: 1,
+    width: '100%',
+    paddingTop: 40,
+  },
+  innerPainel: {
+    flex: 1,
+    paddingHorizontal: 24,
+  },
+  sectionTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#27ae60',
+    marginBottom: 20,
+    marginTop: 10,
   },
   textoAviso: {
     fontSize: 18,
@@ -88,13 +150,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  textoSucesso: {
-    fontSize: 20,
-    color: '#27ae60',
-    fontWeight: 'bold',
-  },
   textoErro: {
     fontSize: 18,
     color: '#c0392b',
+    fontWeight: 'bold'
   }
 });
