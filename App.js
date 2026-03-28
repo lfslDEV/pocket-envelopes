@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Toast from 'react-native-toast-message';
@@ -8,10 +9,15 @@ import "react-native-get-random-values";
 import Login from './src/login';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
+import CameraComponent from './src/camera';
 import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada } from './src/storage';
 
 export function Painel() {
   const [envelopes, setEnvelopes] = useState([]);
+  
+  // Novos estados para controlar a Câmera
+  const [cameraVisivel, setCameraVisivel] = useState(false);
+  const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -30,7 +36,7 @@ export function Painel() {
       Toast.show({ type: 'error', text1: 'Nome Vazio' });
       return;
     }
-    const novo = { id: uuidv4(), nome };
+    const novo = { id: uuidv4(), nome, reciboUri: null }; // Adicionamos a propriedade reciboUri vazia
     setEnvelopes([novo, ...envelopes]);
     Toast.show({ type: 'success', text1: 'Envelope criado!' });
   };
@@ -40,13 +46,43 @@ export function Painel() {
     setEnvelopes(filtrados);
   };
 
+  const abrirCamera = (idEnvelope) => {
+    setEnvelopeParaFoto(idEnvelope);
+    setCameraVisivel(true);
+  };
+
+  const salvarFotoNoEnvelope = (photoUri) => {
+    const listaAtualizada = envelopes.map(env => {
+      if (env.id === envelopeParaFoto) {
+        return { ...env, reciboUri: photoUri };
+      }
+      return env;
+    });
+    
+    setEnvelopes(listaAtualizada);
+    setCameraVisivel(false);
+    setEnvelopeParaFoto(null);
+    Toast.show({ type: 'success', text1: 'Recibo salvo no envelope!' });
+  };
+
   return (
     <SafeAreaView style={styles.painelContainer}>
       <View style={styles.innerPainel}>
         <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
         <AddEnvelope addEnvelope={addEnvelope} />
-        <ListEnvelopes deleteEnvelope={deleteEnvelope} envelopes={envelopes} />
+        
+        <ListEnvelopes 
+          envelopes={envelopes} 
+          deleteEnvelope={deleteEnvelope} 
+          openCamera={abrirCamera} 
+        />
       </View>
+
+      <CameraComponent 
+        visivel={cameraVisivel} 
+        onClose={() => setCameraVisivel(false)} 
+        onSavePhoto={salvarFotoNoEnvelope} 
+      />
     </SafeAreaView>
   );
 }
