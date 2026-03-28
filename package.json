@@ -11,13 +11,18 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "^54.0.33",
+    "expo-camera": "~17.0.10",
     "expo-local-authentication": "~17.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
     "react-native-get-random-values": "~1.11.0",
+    "react-native-safe-area-context": "~5.6.0",
     "react-native-toast-message": "^2.3.3",
     "uuid": "^13.0.0"
   },
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "@expo/ngrok": "^4.1.3"
+  }
 }
