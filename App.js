@@ -7,6 +7,8 @@ import Toast from 'react-native-toast-message';
 import { v4 as uuidv4 } from 'uuid';
 import "react-native-get-random-values";
 import Login from './src/login';
+import * as Location from 'expo-location';
+import MapaComponent from './src/map';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
 import CameraComponent from './src/camera';
@@ -15,9 +17,11 @@ import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVin
 export function Painel() {
   const [envelopes, setEnvelopes] = useState([]);
   
-  // Novos estados para controlar a Câmera
   const [cameraVisivel, setCameraVisivel] = useState(false);
   const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
+
+  const [mapaVisivel, setMapaVisivel] = useState(false);
+  const [localSelecionado, setLocalSelecionado] = useState(null);
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -31,14 +35,46 @@ export function Painel() {
     salvarEnvelopes(envelopes);
   }, [envelopes]);
 
-  const addEnvelope = (nome) => {
+  const addEnvelope = async (nome) => {
     if (nome === '') {
       Toast.show({ type: 'error', text1: 'Nome Vazio' });
       return;
     }
-    const novo = { id: uuidv4(), nome, reciboUri: null }; // Adicionamos a propriedade reciboUri vazia
-    setEnvelopes([novo, ...envelopes]);
+
+    const idNovo = uuidv4();
+    const novo = { 
+      id: idNovo, 
+      nome, 
+      reciboUri: null, 
+      localizacao: null
+    };
+    
+    setEnvelopes(prev => [novo, ...prev]);
     Toast.show({ type: 'success', text1: 'Envelope criado!' });
+
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let location = await Location.getLastKnownPositionAsync({});
+        
+        if (!location) {
+          location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        }
+
+        const localizacaoAtual = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+
+        setEnvelopes(prevEnvelopes => 
+          prevEnvelopes.map(env => 
+            env.id === idNovo ? { ...env, localizacao: localizacaoAtual } : env
+          )
+        );
+      }
+    } catch (error) {
+      console.log("Erro ao buscar GPS em segundo plano", error);
+    }
   };
 
   const deleteEnvelope = (id) => {
@@ -53,16 +89,18 @@ export function Painel() {
 
   const salvarFotoNoEnvelope = (photoUri) => {
     const listaAtualizada = envelopes.map(env => {
-      if (env.id === envelopeParaFoto) {
-        return { ...env, reciboUri: photoUri };
-      }
+      if (env.id === envelopeParaFoto) return { ...env, reciboUri: photoUri };
       return env;
     });
-    
     setEnvelopes(listaAtualizada);
     setCameraVisivel(false);
     setEnvelopeParaFoto(null);
-    Toast.show({ type: 'success', text1: 'Recibo salvo no envelope!' });
+    Toast.show({ type: 'success', text1: 'Recibo salvo!' });
+  };
+
+  const abrirMapa = (localizacao) => {
+    setLocalSelecionado(localizacao);
+    setMapaVisivel(true);
   };
 
   return (
@@ -74,7 +112,8 @@ export function Painel() {
         <ListEnvelopes 
           envelopes={envelopes} 
           deleteEnvelope={deleteEnvelope} 
-          openCamera={abrirCamera} 
+          openCamera={abrirCamera}
+          openMapa={abrirMapa} 
         />
       </View>
 
@@ -82,6 +121,11 @@ export function Painel() {
         visivel={cameraVisivel} 
         onClose={() => setCameraVisivel(false)} 
         onSavePhoto={salvarFotoNoEnvelope} 
+      />
+      <MapaComponent 
+        visivel={mapaVisivel} 
+        onClose={() => setMapaVisivel(false)} 
+        localizacao={localSelecionado} 
       />
     </SafeAreaView>
   );
