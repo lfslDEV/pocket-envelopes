@@ -42,7 +42,6 @@ export default function CameraComponent({ visivel, onClose, onSavePhoto }) {
 
   if (!visivel) return null;
 
-  // Se não houver permissão
   if (!cameraPermission?.granted) {
     return (
       <Modal visible={visivel} transparent={false} animationType="slide">
@@ -109,25 +108,130 @@ export default function CameraComponent({ visivel, onClose, onSavePhoto }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  permissionContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24, backgroundColor: '#fff' },
-  message: { fontSize: 18, textAlign: 'center', marginBottom: 20 },
-  permissionButton: { backgroundColor: '#222', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
-  permissionButtonText: { color: '#fff', fontWeight: 'bold' },
-  camera: { flex: 1 },
-  topBar: { flexDirection: 'row', alignItems: 'center', position: 'absolute', top: 40, width: '100%', paddingHorizontal: 20 },
-  closeBtn: { backgroundColor: 'rgba(0,0,0,0.5)', width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
-  closeText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
-  title: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginLeft: 15, backgroundColor: 'rgba(0,0,0,0.35)', paddingHorizontal: 10, borderRadius: 8 },
-  buttonContainer: { position: 'absolute', bottom: 40, width: '100%', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  buttonFlip: { position: 'absolute', left: 40, backgroundColor: 'rgba(255,255,255,0.3)', padding: 10, borderRadius: 30 },
-  buttonTake: { width: 70, height: 70, borderRadius: 35, backgroundColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center' },
-  innerButtonTake: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#fff' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-  modalContent: { width: '100%', backgroundColor: '#fff', borderRadius: 16, padding: 16, alignItems: 'center' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
-  previewImage: { width: '100%', height: 400, borderRadius: 12, backgroundColor: '#eee' },
-  modalButtons: { flexDirection: 'row', marginTop: 16, gap: 12 },
-  modalButton: { backgroundColor: '#222', paddingVertical: 12, paddingHorizontal: 20, borderRadius: 8 },
-  modalButtonText: { color: '#fff', fontWeight: 'bold' }
+  container: { 
+    flex: 1, 
+    backgroundColor: '#000' 
+  },
+  permissionContainer: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 24, 
+    backgroundColor: '#fff' 
+  },
+  message: { 
+    fontSize: 18, 
+    textAlign: 'center', 
+    marginBottom: 20 
+  },
+  permissionButton: { 
+    backgroundColor: '#222', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 8 
+  },
+  permissionButtonText: { 
+    color: '#fff', 
+    fontWeight: 'bold' 
+  },
+  camera: { 
+    flex: 1 
+  },
+  topBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    position: 'absolute', 
+    top: 40, width: '100%', 
+    paddingHorizontal: 20 
+  },
+  closeBtn: { 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    width: 40, 
+    height: 40, 
+    borderRadius: 20, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  closeText: { 
+    color: '#fff', 
+    fontSize: 18, 
+    fontWeight: 'bold' 
+  },
+  title: { 
+    color: '#fff', 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginLeft: 15, 
+    backgroundColor: 'rgba(0,0,0,0.35)', 
+    paddingHorizontal: 10, 
+    borderRadius: 8 
+  },
+  buttonContainer: { 
+    position: 'absolute', 
+    bottom: 40, width: '100%', 
+    flexDirection: 'row', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  buttonFlip: { 
+    position: 'absolute', 
+    left: 40, 
+    backgroundColor: 'rgba(255,255,255,0.3)', 
+    padding: 10, 
+    borderRadius: 30 
+  },
+  buttonTake: { 
+    width: 70, 
+    height: 70, 
+    borderRadius: 35, 
+    backgroundColor: 'rgba(255,255,255,0.3)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  innerButtonTake: { 
+    width: 54, 
+    height: 54, 
+    borderRadius: 27, 
+    backgroundColor: '#fff' 
+  },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.85)', 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 20 
+  },
+  modalContent: { 
+    width: '100%', 
+    backgroundColor: '#fff', 
+    borderRadius: 16, 
+    padding: 16, 
+    alignItems: 'center' 
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginBottom: 12 
+  },
+  previewImage: { 
+    width: '100%', 
+    height: 400, 
+    borderRadius: 12, 
+    backgroundColor: '#eee' 
+  },
+  modalButtons: { 
+    flexDirection: 'row', 
+    marginTop: 16, 
+    gap: 12 
+  },
+  modalButton: { 
+    backgroundColor: '#222', 
+    paddingVertical: 12, 
+    paddingHorizontal: 20, 
+    borderRadius: 8 
+  },
+  modalButtonText: { 
+    color: '#fff', 
+    fontWeight: 'bold' 
+  }
 });

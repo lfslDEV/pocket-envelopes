@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
 
-export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera }) {
+export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera, openMapa }) {
   return (
     <View style={styles.listContainer}>
       <FlatList
@@ -10,7 +10,6 @@ export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera })
         renderItem={({ item }) => (
           <View style={styles.card}>
             
-            {/* Cabeçalho do Envelope */}
             <View style={styles.cardHeader}>
               <Text style={styles.textoItem}>{item.nome}</Text>
               <TouchableOpacity onPress={() => deleteEnvelope(item.id)}>
@@ -18,22 +17,31 @@ export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera })
               </TouchableOpacity>
             </View>
 
-            {/* Área do Recibo da Câmera */}
-            <View style={styles.reciboContainer}>
-              {item.reciboUri ? (
-                <Image source={{ uri: item.reciboUri }} style={styles.miniatura} />
-              ) : (
-                <Text style={styles.semRecibo}>Nenhum recibo anexado</Text>
-              )}
+            <View style={styles.actionsContainer}>
               
-              <TouchableOpacity 
-                style={styles.btnCamera} 
-                onPress={() => openCamera(item.id)} // Chama a função passando o ID do envelope
-              >
-                <Text style={styles.btnCameraText}>
-                  📷 {item.reciboUri ? 'Trocar Recibo' : 'Anexar Recibo'}
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.reciboWrapper}>
+                {item.reciboUri ? (
+                  <Image source={{ uri: item.reciboUri }} style={styles.miniatura} />
+                ) : null}
+                
+                <TouchableOpacity style={styles.btnAction} onPress={() => openCamera(item.id)}>
+                  <Text style={styles.btnActionText}>
+                    📷 {item.reciboUri ? 'Trocar' : 'Recibo'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {item.localizacao && (
+                <TouchableOpacity 
+                  style={[styles.btnAction, { backgroundColor: '#e8f4f8' }]} 
+                  onPress={() => openMapa(item.localizacao)}
+                >
+                  <Text style={[styles.btnActionText, { color: '#2980b9' }]}>
+                    📍 Ver Local
+                  </Text>
+                </TouchableOpacity>
+              )}
+
             </View>
 
           </View>
@@ -44,62 +52,62 @@ export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera })
 }
 
 const styles = StyleSheet.create({
-  listContainer: {
-    flex: 1,
-    marginTop: 10,
+  listContainer: { 
+    flex: 1, marginTop: 10 
   },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    elevation: 2,
+  card: { 
+    backgroundColor: '#fff', 
+    borderRadius: 8, 
+    padding: 15, 
+    marginBottom: 15, 
+    borderWidth: 1, 
+    borderColor: '#ddd', 
+    elevation: 2 
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    paddingBottom: 10,
-    marginBottom: 10,
+  cardHeader: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#eee', 
+    paddingBottom: 10, 
+    marginBottom: 10 
   },
-  textoItem: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+  textoItem: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#333' 
   },
-  deleteText: {
-    color: '#c0392b',
-    fontWeight: 'bold',
+  deleteText: { 
+    color: '#c0392b', 
+    fontWeight: 'bold' 
   },
-  reciboContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  actionsContainer: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginTop: 5 
   },
-  miniatura: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-    backgroundColor: '#eee',
+  reciboWrapper: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 10 
   },
-  semRecibo: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
+  miniatura: { 
+    width: 40, 
+    height: 40, 
+    borderRadius: 6, 
+    backgroundColor: '#eee' 
   },
-  btnCamera: {
-    backgroundColor: '#f1f2f6',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
+  btnAction: { 
+    backgroundColor: '#f1f2f6', 
+    paddingVertical: 8, 
+    paddingHorizontal: 12, 
+    borderRadius: 6 
   },
-  btnCameraText: {
-    color: '#2f3542',
-    fontWeight: '600',
-    fontSize: 14,
+  btnActionText: { 
+    color: '#2f3542', 
+    fontWeight: '600', 
+    fontSize: 13 
   }
 });
