@@ -7,10 +7,12 @@ import "react-native-get-random-values";
 import Toast from 'react-native-toast-message';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
+import Profile from './src/profile';
 
-export function Painel() {
+export function Painel({ user, onLogout }) {
   const [acess, setAcess] = useState(false);
   const [envelopes, setEnvelopes] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -56,9 +58,23 @@ export function Painel() {
 
   return (
     <SafeAreaView style={styles.painelContainer}>
-      {acess ? (
+      {showProfile ? (
+        <Profile 
+          user={user}
+          onBack={() => setShowProfile(false)}
+          onLogout={onLogout}
+        />
+      ) : acess ? (
         <View style={styles.innerPainel}>
-          <Text style={styles.sectionTitle}>Meus Envelopes</Text>
+          <View style={styles.header}>
+            <Text style={styles.sectionTitle}>Meus Envelopes</Text>
+            <TouchableOpacity 
+              style={styles.profileButton} 
+              onPress={() => setShowProfile(true)}
+            >
+              <Text style={styles.profileButtonText}>Perfil</Text>
+            </TouchableOpacity>
+          </View>
           <AddEnvelope addEnvelope={addEnvelope} />
           <ListEnvelopes deleteEnvelope={deleteEnvelope} envelopes={envelopes} />
         </View>
@@ -74,8 +90,18 @@ export function Painel() {
 export default function App() {
   const [biometria, setBiometria] = useState(false);
   const [render, setRender] = useState(false);
+  const [currentUser, setCurrentUser] = useState({ nome: 'Usuário Padrão', email: 'usuario@exemplo.com' });
   
   const changeRender = () => setRender(true);
+  
+  const handleLogout = () => {
+    setRender(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Logout realizado',
+      text2: 'Até logo!'
+    });
+  };
 
   useEffect(() => {
     (async () => {
@@ -87,7 +113,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       {render ? (
-        <Painel />
+        <Painel user={currentUser} onLogout={handleLogout} />
       ) : (
         <View style={styles.centerContent}>
           <Text style={styles.textoAviso}>
@@ -127,12 +153,28 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
   sectionTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#27ae60',
-    marginBottom: 20,
-    marginTop: 10,
+  },
+  profileButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  profileButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   textoAviso: {
     fontSize: 18,
