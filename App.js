@@ -42,7 +42,7 @@ export function Painel({ userEmail, onLogout }) {
     salvarEnvelopes(envelopes);
   }, [envelopes]);
 
-  const addEnvelope = async (nome) => {
+  const addEnvelope = async (nome, categoria) => {
     if (nome === '') {
       Toast.show({ type: 'error', text1: 'Nome Vazio' });
       return;
@@ -52,6 +52,7 @@ export function Painel({ userEmail, onLogout }) {
     const novo = { 
       id: idNovo, 
       nome, 
+      categoria,
       reciboUri: null, 
       localizacao: null
     };
@@ -110,6 +111,24 @@ export function Painel({ userEmail, onLogout }) {
     setMapaVisivel(true);
   };
 
+  const prepararSeccoes = () => {
+    const grupos = envelopes.reduce((acc, current) => {
+      const cat = current.categoria || 'Geral'; 
+      if (!acc[cat]) {
+        acc[cat] = [];
+      }
+      acc[cat].push(current);
+      return acc;
+    }, {});
+
+    return Object.keys(grupos).map(cat => ({
+      title: cat,
+      data: grupos[cat]
+    }));
+  };
+
+  const categoriasExistentes = [...new Set(envelopes.map(env => env.categoria || 'Geral'))];
+
   return (
     <SafeAreaView style={styles.painelContainer}>
       {showProfile ? (
@@ -129,10 +148,10 @@ export function Painel({ userEmail, onLogout }) {
               <Text style={styles.profileButtonText}>Perfil</Text>
             </TouchableOpacity>
           </View>
-          <AddEnvelope addEnvelope={addEnvelope} />
+          <AddEnvelope addEnvelope={addEnvelope} categorias={categoriasExistentes} />
           
           <ListEnvelopes 
-            envelopes={envelopes} 
+            sections={prepararSeccoes()} 
             deleteEnvelope={deleteEnvelope} 
             openCamera={abrirCamera}
             openMapa={abrirMapa} 

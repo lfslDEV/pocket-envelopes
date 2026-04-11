@@ -1,15 +1,46 @@
-import React from 'react';
-import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, SectionList, TouchableOpacity, Image } from 'react-native';
 
-export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera, openMapa }) {
+export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, openMapa }) {
+  const [colapsados, setColapsados] = useState({});
+
+  const togglePasta = (title) => {
+    setColapsados(prev => ({
+      ...prev,
+      [title]: !prev[title]
+    }));
+  };
+
+  const seccoesFiltradas = sections.map(seccao => ({
+    ...seccao,
+    data: colapsados[seccao.title] ? [] : seccao.data
+  }));
+
   return (
     <View style={styles.listContainer}>
-      <FlatList
-        data={envelopes}
+      <SectionList
+        sections={seccoesFiltradas}
         keyExtractor={(item) => item.id}
+        
+        renderSectionHeader={({ section: { title, data } }) => {
+          const estaFechado = colapsados[title];
+          const totalItens = sections.find(s => s.title === title).data.length;
+
+          return (
+            <TouchableOpacity 
+              style={styles.headerPasta} 
+              activeOpacity={0.7}
+              onPress={() => togglePasta(title)}
+            >
+              <Text style={styles.textoPasta}>
+                {estaFechado ? '📁' : '📂'} {title} <Text style={styles.contador}>({totalItens})</Text>
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+
         renderItem={({ item }) => (
           <View style={styles.card}>
-            
             <View style={styles.cardHeader}>
               <Text style={styles.textoItem}>{item.nome}</Text>
               <TouchableOpacity onPress={() => deleteEnvelope(item.id)}>
@@ -18,32 +49,19 @@ export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera, o
             </View>
 
             <View style={styles.actionsContainer}>
-              
               <View style={styles.reciboWrapper}>
-                {item.reciboUri ? (
-                  <Image source={{ uri: item.reciboUri }} style={styles.miniatura} />
-                ) : null}
-                
+                {item.reciboUri && <Image source={{ uri: item.reciboUri }} style={styles.miniatura} />}
                 <TouchableOpacity style={styles.btnAction} onPress={() => openCamera(item.id)}>
-                  <Text style={styles.btnActionText}>
-                    📷 {item.reciboUri ? 'Trocar' : 'Recibo'}
-                  </Text>
+                  <Text style={styles.btnActionText}>📷 Recibo</Text>
                 </TouchableOpacity>
               </View>
 
               {item.localizacao && (
-                <TouchableOpacity 
-                  style={[styles.btnAction, { backgroundColor: '#e8f4f8' }]} 
-                  onPress={() => openMapa(item.localizacao)}
-                >
-                  <Text style={[styles.btnActionText, { color: '#2980b9' }]}>
-                    📍 Ver Local
-                  </Text>
+                <TouchableOpacity style={styles.btnMapa} onPress={() => openMapa(item.localizacao)}>
+                  <Text style={styles.btnMapaText}>📍 Local</Text>
                 </TouchableOpacity>
               )}
-
             </View>
-
           </View>
         )}
       />
@@ -52,62 +70,80 @@ export default function ListEnvelopes({ envelopes, deleteEnvelope, openCamera, o
 }
 
 const styles = StyleSheet.create({
-  listContainer: { 
-    flex: 1, marginTop: 10 
+  listContainer: { flex: 1, paddingBottom: 20 },
+  headerPasta: {
+    backgroundColor: '#e1e8ed',
+    padding: 12,
+    marginTop: 15,
+    borderRadius: 8,
+    borderLeftWidth: 5,
+    borderLeftColor: '#3498db',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  card: { 
-    backgroundColor: '#fff', 
-    borderRadius: 8, 
-    padding: 15, 
-    marginBottom: 15, 
-    borderWidth: 1, 
-    borderColor: '#ddd', 
-    elevation: 2 
+  textoPasta: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c3e50',
+    textTransform: 'uppercase'
   },
-  cardHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#eee', 
-    paddingBottom: 10, 
-    marginBottom: 10 
+  contador: {
+    fontSize: 14,
+    color: '#7f8c8d',
+    fontWeight: 'normal'
   },
-  textoItem: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#333' 
+  card: {
+    backgroundColor: '#fff',
+    padding: 15,
+    marginTop: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee'
   },
-  deleteText: { 
-    color: '#c0392b', 
-    fontWeight: 'bold' 
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10
   },
-  actionsContainer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginTop: 5 
+  textoItem: {
+    fontSize: 18,
+    fontWeight: '500'
   },
-  reciboWrapper: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    gap: 10 
+  deleteText: {
+    color: '#e74c3c'
   },
-  miniatura: { 
-    width: 40, 
-    height: 40, 
-    borderRadius: 6, 
-    backgroundColor: '#eee' 
+  actionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
   },
-  btnAction: { 
-    backgroundColor: '#f1f2f6', 
-    paddingVertical: 8, 
-    paddingHorizontal: 12, 
-    borderRadius: 6 
+  reciboWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10
   },
-  btnActionText: { 
-    color: '#2f3542', 
-    fontWeight: '600', 
-    fontSize: 13 
+  miniatura: {
+    width: 35,
+    height: 35,
+    borderRadius: 4
+  },
+  btnAction: {
+    backgroundColor: '#f1f2f6',
+    padding: 8,
+    borderRadius: 6
+  },
+  btnActionText: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  btnMapa: {
+    backgroundColor: '#e8f4f8',
+    padding: 8,
+    borderRadius: 6
+  },
+  btnMapaText: {
+    color: '#2980b9',
+    fontSize: 12,
+    fontWeight: 'bold'
   }
 });
