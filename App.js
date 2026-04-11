@@ -13,10 +13,13 @@ import ListEnvelopes from './src/list';
 import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
-import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada } from './src/storage';
+import Profile from './src/profile';
+import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail } from './src/storage';
 
-export function Painel() {
+export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
+  const [showProfile, setShowProfile] = useState(false);
+  const [userData, setUserData] = useState(null);
   
   const [cameraVisivel, setCameraVisivel] = useState(false);
   const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
@@ -28,9 +31,12 @@ export function Painel() {
     const carregarDados = async () => {
       const dados = await buscarEnvelopes();
       setEnvelopes(dados);
+      
+      const user = await buscarUsuarioPorEmail(userEmail);
+      setUserData(user);
     };
     carregarDados();
-  }, []);
+  }, [userEmail]);
 
   useEffect(() => {
     salvarEnvelopes(envelopes);
@@ -106,17 +112,33 @@ export function Painel() {
 
   return (
     <SafeAreaView style={styles.painelContainer}>
-      <View style={styles.innerPainel}>
-        <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
-        <AddEnvelope addEnvelope={addEnvelope} />
-        
-        <ListEnvelopes 
-          envelopes={envelopes} 
-          deleteEnvelope={deleteEnvelope} 
-          openCamera={abrirCamera}
-          openMapa={abrirMapa} 
+      {showProfile ? (
+        <Profile 
+          user={userData}
+          onBack={() => setShowProfile(false)}
+          onLogout={onLogout}
         />
-      </View>
+      ) : (
+        <View style={styles.innerPainel}>
+          <View style={styles.header}>
+            <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
+            <TouchableOpacity 
+              style={styles.profileButton} 
+              onPress={() => setShowProfile(true)}
+            >
+              <Text style={styles.profileButtonText}>Perfil</Text>
+            </TouchableOpacity>
+          </View>
+          <AddEnvelope addEnvelope={addEnvelope} />
+          
+          <ListEnvelopes 
+            envelopes={envelopes} 
+            deleteEnvelope={deleteEnvelope} 
+            openCamera={abrirCamera}
+            openMapa={abrirMapa} 
+          />
+        </View>
+      )}
 
       <CameraComponent 
         visivel={cameraVisivel} 
@@ -162,6 +184,17 @@ export default function App() {
     setShowRegister(false);
   };
 
+  const handleLogout = async () => {
+    await desvincularBiometria();
+    setEmailVinculado(null);
+    setCofreAberto(false);
+    Toast.show({
+      type: 'success',
+      text1: 'Logout realizado',
+      text2: 'Até logo!'
+    });
+  };
+
   const pedirBiometria = async () => {
     const temHardware = await LocalAuthentication.hasHardwareAsync();
     if (!temHardware) {
@@ -193,7 +226,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       {cofreAberto ? (
-        <Painel />
+        <Painel userEmail={emailVinculado} onLogout={handleLogout} />
       ) : (
         <View style={styles.centerContent}>
           {showRegister ? (
@@ -248,12 +281,28 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 24,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 10,
+    marginBottom: 20,
+  },
   sectionTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#27ae60',
-    marginBottom: 20,
-    marginTop: 10,
+  },
+  profileButton: {
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  profileButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   textoAviso: {
     fontSize: 24,

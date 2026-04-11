@@ -75,3 +75,22 @@ export const checarBiometriaVinculada = async () => {
     return null;
   }
 };
+
+export const desvincularBiometria = async () => {
+  try {
+    await AsyncStorage.removeItem(BIOMETRIA_VINCULADA_KEY);
+  } catch (e) {
+    console.log("Erro ao desvincular biometria", e);
+  }
+};
+
+export const buscarUsuarioPorEmail = async (email) => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(USUARIOS_KEY);
+    const usuarios = jsonValue != null ? JSON.parse(jsonValue) : [];
+    const usuario = usuarios.find(u => u.email === email);
+    return usuario || null;
+  } catch (e) {
+    return null;
+  }
+};
