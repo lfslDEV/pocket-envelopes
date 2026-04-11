@@ -7,6 +7,8 @@ import "react-native-get-random-values";
 import Toast from 'react-native-toast-message';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
+import Login from './src/login';
+import Register from './src/register';
 
 export function Painel() {
   const [acess, setAcess] = useState(false);
@@ -74,8 +76,25 @@ export function Painel() {
 export default function App() {
   const [biometria, setBiometria] = useState(false);
   const [render, setRender] = useState(false);
+  const [screen, setScreen] = useState('login'); // 'login', 'register', 'biometria', 'painel'
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   
-  const changeRender = () => setRender(true);
+  const changeRender = () => {
+    setScreen('biometria');
+    setRender(true);
+  };
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setScreen('biometria');
+    setRender(true);
+  };
+
+  const handleRegister = (newUser) => {
+    setUsers([...users, newUser]);
+    setScreen('login');
+  };
 
   useEffect(() => {
     (async () => {
@@ -86,9 +105,23 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      {render ? (
-        <Painel />
-      ) : (
+      {screen === 'login' && (
+        <Login 
+          onLogin={handleLogin}
+          onNavigateToRegister={() => setScreen('register')}
+          users={users}
+        />
+      )}
+      
+      {screen === 'register' && (
+        <Register 
+          onRegister={handleRegister}
+          onNavigateToLogin={() => setScreen('login')}
+          users={users}
+        />
+      )}
+
+      {screen === 'biometria' && !render && (
         <View style={styles.centerContent}>
           <Text style={styles.textoAviso}>
             {biometria
@@ -102,6 +135,11 @@ export default function App() {
           </TouchableOpacity>
         </View>
       )}
+
+      {render && (
+        <Painel />
+      )}
+      
       <Toast position='top' bottomOffset={20} />
       <StatusBar style="auto" />
     </View>
