@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "AppFinanceiro",
-    "slug": "AppFinanceiro",
+    "name": "Pocket Envelopes",
+    "slug": "pocket-envelopes",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
