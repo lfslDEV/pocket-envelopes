@@ -1,55 +1,32 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import Toast from 'react-native-toast-message';
-import { cadastrarUsuario, fazerLogin } from './storage';
+import { fazerLogin } from './storage';
 
-export default function Login({ onLoginSuccess }) {
-  const [isCadastro, setIsCadastro] = useState(false);
-  const [nome, setNome] = useState('');
+export default function Login({ onLoginSuccess, onNavigateToRegister }) {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
 
-  const handleAuth = async () => {
+  const handleLogin = async () => {
     Keyboard.dismiss();
-    if (!email || !senha || (isCadastro && !nome)) {
+    if (!email || !senha) {
       Toast.show({ type: 'error', text1: 'Preencha todos os campos!' });
       return;
     }
 
-    if (isCadastro) {
-      const res = await cadastrarUsuario(nome, email, senha);
-      if (res.sucesso) {
-        Toast.show({ type: 'success', text1: 'Conta criada com sucesso!' });
-        onLoginSuccess(email);
-      } else {
-        Toast.show({ type: 'error', text1: 'Erro no Cadastro', text2: res.erro });
-      }
+    const res = await fazerLogin(email, senha);
+    if (res.sucesso) {
+      Toast.show({ type: 'success', text1: 'Login aprovado!' });
+      onLoginSuccess(email);
     } else {
-      const res = await fazerLogin(email, senha);
-      if (res.sucesso) {
-        Toast.show({ type: 'success', text1: 'Login aprovado!' });
-        onLoginSuccess(email);
-      } else {
-        Toast.show({ type: 'error', text1: 'Erro no Login', text2: res.erro });
-      }
+      Toast.show({ type: 'error', text1: 'Erro no Login', text2: res.erro });
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{isCadastro ? 'Criar Nova Conta' : 'Acessar Cofre'}</Text>
-      <Text style={styles.subtitle}>
-        {isCadastro ? 'Cadastre-se para proteger seus envelopes.' : 'Entre com seu e-mail e senha.'}
-      </Text>
-
-      {isCadastro && (
-        <TextInput
-          style={styles.input}
-          placeholder="Seu Nome"
-          value={nome}
-          onChangeText={setNome}
-        />
-      )}
+      <Text style={styles.title}>Acessar Cofre</Text>
+      <Text style={styles.subtitle}>Entre com seu e-mail e senha.</Text>
 
       <TextInput
         style={styles.input}
@@ -68,13 +45,13 @@ export default function Login({ onLoginSuccess }) {
         onChangeText={setSenha}
       />
 
-      <TouchableOpacity style={styles.button} onPress={handleAuth}>
-        <Text style={styles.buttonText}>{isCadastro ? 'Cadastrar' : 'Entrar'}</Text>
+      <TouchableOpacity style={styles.button} onPress={handleLogin}>
+        <Text style={styles.buttonText}>Entrar</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.toggleButton} onPress={() => setIsCadastro(!isCadastro)}>
+      <TouchableOpacity style={styles.toggleButton} onPress={onNavigateToRegister}>
         <Text style={styles.toggleText}>
-          {isCadastro ? 'Já tenho conta. Fazer Login' : 'Não tem conta? Cadastre-se aqui'}
+          Não tem conta? Cadastre-se aqui
         </Text>
       </TouchableOpacity>
     </View>

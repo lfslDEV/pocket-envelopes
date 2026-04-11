@@ -6,12 +6,13 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import Toast from 'react-native-toast-message';
 import { v4 as uuidv4 } from 'uuid';
 import "react-native-get-random-values";
-import Login from './src/login';
 import * as Location from 'expo-location';
 import MapaComponent from './src/map';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
 import CameraComponent from './src/camera';
+import Login from './src/login';
+import Register from './src/register';
 import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada } from './src/storage';
 
 export function Painel() {
@@ -135,6 +136,7 @@ export default function App() {
   const [isCarregando, setIsCarregando] = useState(true);
   const [emailVinculado, setEmailVinculado] = useState(null);
   const [cofreAberto, setCofreAberto] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
     async function iniciarApp() {
@@ -149,6 +151,15 @@ export default function App() {
     await vincularBiometria(email);
     setEmailVinculado(email);
     setCofreAberto(true);
+  };
+
+  const handleRegisterSuccess = () => {
+    Toast.show({ 
+      type: 'success', 
+      text1: 'Cadastro realizado!',
+      text2: 'Agora faça login para acessar.'
+    });
+    setShowRegister(false);
   };
 
   const pedirBiometria = async () => {
@@ -185,22 +196,30 @@ export default function App() {
         <Painel />
       ) : (
         <View style={styles.centerContent}>
-          {!emailVinculado && (
+          {showRegister ? (
             <View style={{ width: '100%', paddingHorizontal: 20 }}>
-              <Login onLoginSuccess={handleLoginSuccess} />
+              <Register 
+                onRegisterSuccess={handleRegisterSuccess}
+                onNavigateToLogin={() => setShowRegister(false)}
+              />
+            </View>
+          ) : !emailVinculado ? (
+            <View style={{ width: '100%', paddingHorizontal: 20 }}>
+              <Login 
+                onLoginSuccess={handleLoginSuccess}
+                onNavigateToRegister={() => setShowRegister(true)}
+              />
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <Text style={styles.textoAviso}>Bem-vindo de volta!</Text>
+              <Text style={styles.textoSubAviso}>Conta: {emailVinculado}</Text>
+              
+              <TouchableOpacity style={styles.botao} onPress={pedirBiometria}>
+                <Text style={styles.textoBotao}>Acessar com Biometria</Text>
+              </TouchableOpacity>
             </View>
           )}
-          {emailVinculado && (
-             <View style={{ alignItems: 'center' }}>
-               <Text style={styles.textoAviso}>Bem-vindo de volta!</Text>
-               <Text style={styles.textoSubAviso}>Conta: {emailVinculado}</Text>
-               
-               <TouchableOpacity style={styles.botao} onPress={pedirBiometria}>
-                 <Text style={styles.textoBotao}>Acessar com Biometria</Text>
-               </TouchableOpacity>
-             </View>
-          )}
-
         </View>
       )}
       
