@@ -1,143 +1,226 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView } from 'react-native';
-import * as LocalAuthentication from 'expo-local-authentication';
 import { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import * as LocalAuthentication from 'expo-local-authentication';
+import Toast from 'react-native-toast-message';
 import { v4 as uuidv4 } from 'uuid';
 import "react-native-get-random-values";
-import Toast from 'react-native-toast-message';
+import * as Location from 'expo-location';
+import MapaComponent from './src/map';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
+import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
+import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada } from './src/storage';
 
 export function Painel() {
-  const [acess, setAcess] = useState(false);
   const [envelopes, setEnvelopes] = useState([]);
+  
+  const [cameraVisivel, setCameraVisivel] = useState(false);
+  const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
+
+  const [mapaVisivel, setMapaVisivel] = useState(false);
+  const [localSelecionado, setLocalSelecionado] = useState(null);
 
   useEffect(() => {
-    (async () => {
-      const authentication = await LocalAuthentication.authenticateAsync();
-      if (authentication.success) {
-        setAcess(true);
-      } else {
-        setAcess(false);
-      }
-    })();
+    const carregarDados = async () => {
+      const dados = await buscarEnvelopes();
+      setEnvelopes(dados);
+    };
+    carregarDados();
   }, []);
 
-  const addEnvelope = (nome) => {
+  useEffect(() => {
+    salvarEnvelopes(envelopes);
+  }, [envelopes]);
+
+  const addEnvelope = async (nome) => {
     if (nome === '') {
-      Toast.show({
-        type: 'error',
-        text1: 'Nome Vazio',
-        text2: 'Por favor, digite um nome para o envelope.'
-      });
-    } else {
-      const novoEnvelope = {
-        id: uuidv4(),
-        nome: nome,
-      };
-      setEnvelopes([novoEnvelope, ...envelopes]);
-      Toast.show({
-        type: 'success',
-        text1: 'Sucesso',
-        text2: 'Envelope criado!'
-      });
+      Toast.show({ type: 'error', text1: 'Nome Vazio' });
+      return;
+    }
+
+    const idNovo = uuidv4();
+    const novo = { 
+      id: idNovo, 
+      nome, 
+      reciboUri: null, 
+      localizacao: null
+    };
+    
+    setEnvelopes(prev => [novo, ...prev]);
+    Toast.show({ type: 'success', text1: 'Envelope criado!' });
+
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let location = await Location.getLastKnownPositionAsync({});
+        
+        if (!location) {
+          location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        }
+
+        const localizacaoAtual = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+
+        setEnvelopes(prevEnvelopes => 
+          prevEnvelopes.map(env => 
+            env.id === idNovo ? { ...env, localizacao: localizacaoAtual } : env
+          )
+        );
+      }
+    } catch (error) {
+      console.log("Erro ao buscar GPS em segundo plano", error);
     }
   };
 
   const deleteEnvelope = (id) => {
-    const novaLista = envelopes.filter((item) => item.id !== id);
-    setEnvelopes(novaLista);
-    Toast.show({
-      type: 'success',
-      text1: 'Sucesso',
-      text2: 'Envelope deletado!'
+    const filtrados = envelopes.filter((item) => item.id !== id);
+    setEnvelopes(filtrados);
+  };
+
+  const abrirCamera = (idEnvelope) => {
+    setEnvelopeParaFoto(idEnvelope);
+    setCameraVisivel(true);
+  };
+
+  const salvarFotoNoEnvelope = (photoUri) => {
+    const listaAtualizada = envelopes.map(env => {
+      if (env.id === envelopeParaFoto) return { ...env, reciboUri: photoUri };
+      return env;
     });
+    setEnvelopes(listaAtualizada);
+    setCameraVisivel(false);
+    setEnvelopeParaFoto(null);
+    Toast.show({ type: 'success', text1: 'Recibo salvo!' });
+  };
+
+  const abrirMapa = (localizacao) => {
+    setLocalSelecionado(localizacao);
+    setMapaVisivel(true);
   };
 
   return (
     <SafeAreaView style={styles.painelContainer}>
-      {acess ? (
-        <View style={styles.innerPainel}>
-          <Text style={styles.sectionTitle}>Meus Envelopes</Text>
-          <AddEnvelope addEnvelope={addEnvelope} />
-          <ListEnvelopes deleteEnvelope={deleteEnvelope} envelopes={envelopes} />
-        </View>
-      ) : (
-        <View style={styles.centerContent}>
-          <Text style={styles.textoErro}>A Autenticação Falhou</Text>
-        </View>
-      )}
+      <View style={styles.innerPainel}>
+        <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
+        <AddEnvelope addEnvelope={addEnvelope} />
+        
+        <ListEnvelopes 
+          envelopes={envelopes} 
+          deleteEnvelope={deleteEnvelope} 
+          openCamera={abrirCamera}
+          openMapa={abrirMapa} 
+        />
+      </View>
+
+      <CameraComponent 
+        visivel={cameraVisivel} 
+        onClose={() => setCameraVisivel(false)} 
+        onSavePhoto={salvarFotoNoEnvelope} 
+      />
+      <MapaComponent 
+        visivel={mapaVisivel} 
+        onClose={() => setMapaVisivel(false)} 
+        localizacao={localSelecionado} 
+      />
     </SafeAreaView>
   );
 }
 
 export default function App() {
-  const [biometria, setBiometria] = useState(false);
-  const [render, setRender] = useState(false);
-  const [screen, setScreen] = useState('login'); // 'login', 'register', 'biometria', 'painel'
-  const [users, setUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
-  
-  const changeRender = () => {
-    setScreen('biometria');
-    setRender(true);
-  };
-
-  const handleLogin = (user) => {
-    setCurrentUser(user);
-    setScreen('biometria');
-    setRender(true);
-  };
-
-  const handleRegister = (newUser) => {
-    setUsers([...users, newUser]);
-    setScreen('login');
-  };
+  const [isCarregando, setIsCarregando] = useState(true);
+  const [emailVinculado, setEmailVinculado] = useState(null);
+  const [cofreAberto, setCofreAberto] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const compativel = await LocalAuthentication.hasHardwareAsync();
-      setBiometria(compativel);
-    })();
+    async function iniciarApp() {
+      const emailSalvo = await checarBiometriaVinculada();
+      setEmailVinculado(emailSalvo);
+      setIsCarregando(false);
+    }
+    iniciarApp();
   }, []);
+
+  const handleLoginSuccess = async (email) => {
+    await vincularBiometria(email);
+    setEmailVinculado(email);
+    setCofreAberto(true);
+  };
+
+  const handleRegisterSuccess = () => {
+    Toast.show({ 
+      type: 'success', 
+      text1: 'Cadastro realizado!',
+      text2: 'Agora faça login para acessar.'
+    });
+    setShowRegister(false);
+  };
+
+  const pedirBiometria = async () => {
+    const temHardware = await LocalAuthentication.hasHardwareAsync();
+    if (!temHardware) {
+      Toast.show({ type: 'error', text1: 'Dispositivo sem biometria' });
+      return;
+    }
+
+    const auth = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Acesse seu Cofre Financeiro',
+      cancelLabel: 'Cancelar',
+      disableDeviceFallback: false,
+    });
+
+    if (auth.success) {
+      setCofreAberto(true);
+    } else {
+      Toast.show({ type: 'error', text1: 'Autenticação falhou' });
+    }
+  };
+
+  if (isCarregando) {
+    return (
+      <View style={styles.centerContent}>
+        <ActivityIndicator size="large" color="#27ae60" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {screen === 'login' && (
-        <Login 
-          onLogin={handleLogin}
-          onNavigateToRegister={() => setScreen('register')}
-          users={users}
-        />
-      )}
-      
-      {screen === 'register' && (
-        <Register 
-          onRegister={handleRegister}
-          onNavigateToLogin={() => setScreen('login')}
-          users={users}
-        />
-      )}
-
-      {screen === 'biometria' && !render && (
-        <View style={styles.centerContent}>
-          <Text style={styles.textoAviso}>
-            {biometria
-              ? 'Faça o login com biometria'
-              : 'Dispositivo não compatível com biometria'
-            }
-          </Text>
-
-          <TouchableOpacity style={styles.botao} onPress={changeRender}>
-            <Text style={styles.textoBotao}>Entrar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {render && (
+      {cofreAberto ? (
         <Painel />
+      ) : (
+        <View style={styles.centerContent}>
+          {showRegister ? (
+            <View style={{ width: '100%', paddingHorizontal: 20 }}>
+              <Register 
+                onRegisterSuccess={handleRegisterSuccess}
+                onNavigateToLogin={() => setShowRegister(false)}
+              />
+            </View>
+          ) : !emailVinculado ? (
+            <View style={{ width: '100%', paddingHorizontal: 20 }}>
+              <Login 
+                onLoginSuccess={handleLoginSuccess}
+                onNavigateToRegister={() => setShowRegister(true)}
+              />
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center' }}>
+              <Text style={styles.textoAviso}>Bem-vindo de volta!</Text>
+              <Text style={styles.textoSubAviso}>Conta: {emailVinculado}</Text>
+              
+              <TouchableOpacity style={styles.botao} onPress={pedirBiometria}>
+                <Text style={styles.textoBotao}>Acessar com Biometria</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       )}
       
       <Toast position='top' bottomOffset={20} />
@@ -173,24 +256,26 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   textoAviso: {
-    fontSize: 18,
-    marginBottom: 20,
+    fontSize: 24,
+    fontWeight: 'bold',
     color: '#333',
+  },
+  textoSubAviso: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 30,
+    marginTop: 5,
   },
   botao: {
     backgroundColor: '#27ae60',
     paddingVertical: 15,
     paddingHorizontal: 30,
     borderRadius: 8,
+    elevation: 2,
   },
   textoBotao: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  textoErro: {
-    fontSize: 18,
-    color: '#c0392b',
-    fontWeight: 'bold'
   }
 });
