@@ -4,8 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Toast from 'react-native-toast-message';
-import { v4 as uuidv4 } from 'uuid';
-import "react-native-get-random-values";
 import * as Location from 'expo-location';
 import MapaComponent from './src/map';
 import AddEnvelope from './src/add';
@@ -14,7 +12,7 @@ import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
-import { buscarEnvelopes, salvarEnvelopes, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail } from './src/storage';
+import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail } from './src/storage';
 
 export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
@@ -28,19 +26,18 @@ export function Painel({ userEmail, onLogout }) {
   const [localSelecionado, setLocalSelecionado] = useState(null);
 
   useEffect(() => {
-    const carregarDados = async () => {
-      const dados = await buscarEnvelopes();
-      setEnvelopes(dados);
-      
+    const carregarUsuario = async () => {
       const user = await buscarUsuarioPorEmail(userEmail);
       setUserData(user);
     };
-    carregarDados();
-  }, [userEmail]);
+    carregarUsuario();
 
-  useEffect(() => {
-    salvarEnvelopes(envelopes);
-  }, [envelopes]);
+    const unsubscribe = ouvirEnvelopes((envelopesAtualizados) => {
+      setEnvelopes(envelopesAtualizados);
+    });
+
+    return () => unsubscribe();
+  }, [userEmail]);
 
   const addEnvelope = async (nome, categoria) => {
     if (nome === '') {
@@ -48,46 +45,40 @@ export function Painel({ userEmail, onLogout }) {
       return;
     }
 
-    const idNovo = uuidv4();
-    const novo = { 
-      id: idNovo, 
-      nome, 
-      categoria,
-      reciboUri: null, 
-      localizacao: null
-    };
-    
-    setEnvelopes(prev => [novo, ...prev]);
-    Toast.show({ type: 'success', text1: 'Envelope criado!' });
-
     try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        let location = await Location.getLastKnownPositionAsync({});
-        
-        if (!location) {
-          location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const pushKey = await criarEnvelope({ nome, categoria });
+      Toast.show({ type: 'success', text1: 'Envelope criado!' });
+
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          let location = await Location.getLastKnownPositionAsync({});
+          
+          if (!location) {
+            location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          }
+
+          const localizacaoAtual = {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          };
+
+          await atualizarEnvelope(pushKey, { localizacao: localizacaoAtual });
         }
-
-        const localizacaoAtual = {
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        };
-
-        setEnvelopes(prevEnvelopes => 
-          prevEnvelopes.map(env => 
-            env.id === idNovo ? { ...env, localizacao: localizacaoAtual } : env
-          )
-        );
+      } catch (error) {
+        console.log("Erro ao buscar GPS em segundo plano", error);
       }
     } catch (error) {
-      console.log("Erro ao buscar GPS em segundo plano", error);
+      console.log("Erro ao criar envelope", error);
     }
   };
 
-  const deleteEnvelope = (id) => {
-    const filtrados = envelopes.filter((item) => item.id !== id);
-    setEnvelopes(filtrados);
+  const deleteEnvelope = async (id) => {
+    try {
+      await removerEnvelope(id);
+    } catch (error) {
+      console.log("Erro ao remover envelope", error);
+    }
   };
 
   const abrirCamera = (idEnvelope) => {
@@ -95,15 +86,15 @@ export function Painel({ userEmail, onLogout }) {
     setCameraVisivel(true);
   };
 
-  const salvarFotoNoEnvelope = (photoUri) => {
-    const listaAtualizada = envelopes.map(env => {
-      if (env.id === envelopeParaFoto) return { ...env, reciboUri: photoUri };
-      return env;
-    });
-    setEnvelopes(listaAtualizada);
-    setCameraVisivel(false);
-    setEnvelopeParaFoto(null);
-    Toast.show({ type: 'success', text1: 'Recibo salvo!' });
+  const salvarFotoNoEnvelope = async (photoUri) => {
+    try {
+      await atualizarEnvelope(envelopeParaFoto, { reciboUri: photoUri });
+      setCameraVisivel(false);
+      setEnvelopeParaFoto(null);
+      Toast.show({ type: 'success', text1: 'Recibo salvo!' });
+    } catch (error) {
+      console.log("Erro ao salvar recibo", error);
+    }
   };
 
   const abrirMapa = (localizacao) => {

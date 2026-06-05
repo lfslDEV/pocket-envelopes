@@ -1,28 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
+import { db } from '../firebaseConfig';
+import { ref, push, onValue, update, remove } from 'firebase/database';
+import { Alert } from 'react-native';
 
-const ENVELOPES_KEY = '@meus_envelopes';
 const USUARIOS_KEY = '@usuarios_cadastrados';
 const BIOMETRIA_VINCULADA_KEY = '@biometria_vinculada';
 
-export const buscarEnvelopes = async () => {
-  try {
-    const jsonValue = await AsyncStorage.getItem(ENVELOPES_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
-  } catch (e) {
-    Toast.show({ type: 'error', text1: 'Erro ao ler envelopes' });
-    return [];
-  }
-};
-
-export const salvarEnvelopes = async (envelopes) => {
-  try {
-    const jsonValue = JSON.stringify(envelopes);
-    await AsyncStorage.setItem(ENVELOPES_KEY, jsonValue);
-  } catch (e) {
-    Toast.show({ type: 'error', text1: 'Erro ao salvar envelopes' });
-  }
-};
 
 export const cadastrarUsuario = async (nome, email, senha) => {
   try {
@@ -92,5 +75,75 @@ export const buscarUsuarioPorEmail = async (email) => {
     return usuario || null;
   } catch (e) {
     return null;
+  }
+};
+
+export const criarEnvelope = async ({ nome, categoria }) => {
+  try {
+    const envelopesRef = ref(db, 'envelopes');
+    const createdAt = new Date().toISOString();
+    const newRef = await push(envelopesRef, { 
+      nome, 
+      categoria, 
+      reciboUri: null, 
+      localizacao: null, 
+      createdAt 
+    });
+    return newRef.key;
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao criar envelope. Tente novamente.');
+    throw error;
+  }
+};
+
+export const ouvirEnvelopes = (callback) => {
+  try {
+    const envelopesRef = ref(db, 'envelopes');
+    
+    const unsubscribe = onValue(envelopesRef, (snapshot) => {
+      try {
+        const data = snapshot.val();
+        
+        if (!data) {
+          callback([]);
+          return;
+        }
+        
+        const envelopesList = Object.keys(data)
+          .map(k => ({ id: k, ...data[k] }))
+          .reverse();
+        
+        callback(envelopesList);
+      } catch (error) {
+        Alert.alert('Erro', 'Erro ao processar envelopes. Tente novamente.');
+      }
+    }, (error) => {
+      Alert.alert('Erro', 'Erro ao carregar envelopes. Tente novamente.');
+    });
+    
+    return unsubscribe;
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao carregar envelopes. Tente novamente.');
+    return () => {};
+  }
+};
+
+export const atualizarEnvelope = async (id, campos) => {
+  try {
+    const envelopeRef = ref(db, `envelopes/${id}`);
+    await update(envelopeRef, campos);
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao atualizar envelope. Tente novamente.');
+    throw error;
+  }
+};
+
+export const removerEnvelope = async (id) => {
+  try {
+    const envelopeRef = ref(db, `envelopes/${id}`);
+    await remove(envelopeRef);
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao remover envelope. Tente novamente.');
+    throw error;
   }
 };
