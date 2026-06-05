@@ -12,7 +12,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Usamos a câmera para tirar fotos de perfil e registrar recibos.",
+        "NSPhotoLibraryUsageDescription": "Usamos a galeria para escolher sua foto de perfil.",
+        "NSPhotoLibraryAddUsageDescription": "Salvamos fotos na sua galeria."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +25,13 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

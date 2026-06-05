@@ -78,6 +78,20 @@ export const buscarUsuarioPorEmail = async (email) => {
   }
 };
 
+export const atualizarFotoUsuario = async (email, fotoUri) => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(USUARIOS_KEY);
+    const usuarios = jsonValue != null ? JSON.parse(jsonValue) : [];
+    const index = usuarios.findIndex(u => u.email === email);
+    if (index === -1) return { sucesso: false, erro: 'Usuário não encontrado.' };
+    usuarios[index] = { ...usuarios[index], fotoUri: fotoUri ?? null };
+    await AsyncStorage.setItem(USUARIOS_KEY, JSON.stringify(usuarios));
+    return { sucesso: true, usuario: usuarios[index] };
+  } catch (e) {
+    return { sucesso: false, erro: 'Erro ao atualizar foto.' };
+  }
+};
+
 export const criarEnvelope = async ({ nome, categoria, orcamento }) => {
   try {
     const envelopesRef = ref(db, 'envelopes');
