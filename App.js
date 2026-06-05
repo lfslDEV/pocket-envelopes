@@ -13,6 +13,7 @@ import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
+import { DURACAO_TOAST } from './src/config';
 
 export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
@@ -51,13 +52,13 @@ export function Painel({ userEmail, onLogout }) {
 
   const addEnvelope = async (nome, categoria, orcamento) => {
     if (nome === '') {
-      Toast.show({ type: 'error', text1: 'Nome Vazio' });
+      Toast.show({ type: 'error', text1: 'Nome Vazio', visibilityTime: DURACAO_TOAST });
       return;
     }
 
     try {
       const pushKey = await criarEnvelope({ nome, categoria, orcamento });
-      Toast.show({ type: 'success', text1: 'Envelope criado!' });
+      Toast.show({ type: 'success', text1: 'Envelope criado!', visibilityTime: DURACAO_TOAST });
 
       try {
         let { status } = await Location.requestForegroundPermissionsAsync();
@@ -137,7 +138,7 @@ export function Painel({ userEmail, onLogout }) {
       setEnvelopeParaFoto(null);
       setValorDespesaTemp(null);
       setEnvelopeParaDespesa(null);
-      Toast.show({ type: 'success', text1: 'Recibo salvo!' });
+      Toast.show({ type: 'success', text1: 'Recibo salvo!', visibilityTime: DURACAO_TOAST });
     } catch {
       // erro já tratado em storage.js
     }
@@ -170,7 +171,7 @@ export function Painel({ userEmail, onLogout }) {
       return;
     }
     if (valor > (envelopeOrigem.saldo ?? 0)) {
-      Toast.show({ type: 'error', text1: 'Saldo insuficiente' });
+      Toast.show({ type: 'error', text1: 'Saldo insuficiente', visibilityTime: DURACAO_TOAST });
       return;
     }
     try {
@@ -181,7 +182,7 @@ export function Painel({ userEmail, onLogout }) {
         envelopeOrigem.saldo ?? 0,
         envelopeDestino.saldo ?? 0,
       );
-      Toast.show({ type: 'success', text1: 'Transferência realizada!' });
+      Toast.show({ type: 'success', text1: 'Transferência realizada!', visibilityTime: DURACAO_TOAST });
       setModalTransferenciaVisivel(false);
     } catch {
       // erro já tratado em storage.js
@@ -386,7 +387,8 @@ export default function App() {
     Toast.show({ 
       type: 'success', 
       text1: 'Cadastro realizado!',
-      text2: 'Agora faça login para acessar.'
+      text2: 'Agora faça login para acessar.',
+      visibilityTime: DURACAO_TOAST,
     });
     setShowRegister(false);
   };
@@ -398,14 +400,15 @@ export default function App() {
     Toast.show({
       type: 'success',
       text1: 'Logout realizado',
-      text2: 'Até logo!'
+      text2: 'Até logo!',
+      visibilityTime: DURACAO_TOAST,
     });
   };
 
   const pedirBiometria = async () => {
     const temHardware = await LocalAuthentication.hasHardwareAsync();
     if (!temHardware) {
-      Toast.show({ type: 'error', text1: 'Dispositivo sem biometria' });
+      Toast.show({ type: 'error', text1: 'Dispositivo sem biometria', visibilityTime: DURACAO_TOAST });
       return;
     }
 
@@ -418,7 +421,7 @@ export default function App() {
     if (auth.success) {
       setCofreAberto(true);
     } else {
-      Toast.show({ type: 'error', text1: 'Autenticação falhou' });
+      Toast.show({ type: 'error', text1: 'Autenticação falhou', visibilityTime: DURACAO_TOAST });
     }
   };
 
