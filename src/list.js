@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { StyleSheet, View, Text, SectionList, TouchableOpacity, Image } from 'react-native';
 
 export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, openMapa }) {
@@ -22,7 +22,7 @@ export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, op
         sections={seccoesFiltradas}
         keyExtractor={(item) => item.id}
         
-        renderSectionHeader={({ section: { title, data } }) => {
+        renderSectionHeader={({ section: { title } }) => {
           const estaFechado = colapsados[title];
           const totalItens = sections.find(s => s.title === title).data.length;
 
@@ -46,6 +46,11 @@ export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, op
               <TouchableOpacity onPress={() => deleteEnvelope(item.id)}>
                 <Text style={styles.deleteText}>Excluir</Text>
               </TouchableOpacity>
+            </View>
+
+            <View style={styles.budgetContainer}>
+              <Text style={styles.budgetText}>Orçamento: R$ {item.orcamento ?? '—'}</Text>
+              <Text style={styles.budgetText}>Saldo: R$ {item.saldo ?? '—'}</Text>
             </View>
 
             <View style={styles.actionsContainer}>
@@ -145,5 +150,16 @@ const styles = StyleSheet.create({
     color: '#2980b9',
     fontSize: 12,
     fontWeight: 'bold'
+  },
+  budgetContainer: {
+    marginBottom: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#eee'
+  },
+  budgetText: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 3
   }
 });

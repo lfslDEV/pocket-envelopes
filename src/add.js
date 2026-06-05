@@ -1,15 +1,30 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, TextInput, TouchableOpacity, Text, ScrollView } from 'react-native';
+import { Alert, StyleSheet, View, TextInput, TouchableOpacity, Text, ScrollView } from 'react-native';
 
 export default function AddEnvelope({ addEnvelope, categorias }) {
   const [nome, setNome] = useState('');
   const [categoria, setCategoria] = useState('');
+  const [orcamento, setOrcamento] = useState('');
 
   const handleAdd = () => {
     const pastaFinal = categoria.trim() === '' ? 'Geral' : categoria;
-    addEnvelope(nome, pastaFinal);
+
+    const orcamentoNum = Number(orcamento);
+
+    if (isNaN(orcamentoNum)) {
+      Alert.alert('Erro', 'Orçamento inválido. Digite um número válido.');
+      return;
+    }
+
+    if (orcamentoNum < 0) {
+      Alert.alert('Erro', 'Orçamento não pode ser negativo.');
+      return;
+    }
+
+    addEnvelope(nome, pastaFinal, orcamentoNum);
     setNome('');
     setCategoria('');
+    setOrcamento('');
   };
 
   return (
@@ -44,6 +59,14 @@ export default function AddEnvelope({ addEnvelope, categorias }) {
           </ScrollView>
         </View>
       )}
+
+      <TextInput
+        style={styles.input}
+        placeholder="Orçamento (ex: 500)"
+        value={orcamento}
+        onChangeText={setOrcamento}
+        keyboardType="numeric"
+      />
 
       <TouchableOpacity style={styles.botao} onPress={handleAdd}>
         <Text style={styles.botaoTexto}>Adicionar Novo Envelope</Text>
