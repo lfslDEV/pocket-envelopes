@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Keyboard, ScrollView } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { cadastrarUsuario } from './storage';
+import { DURACAO_TOAST } from './config';
 
 export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
   const [nome, setNome] = useState('');
@@ -13,7 +14,7 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
     Keyboard.dismiss();
     
     if (!nome || !email || !senha || !confirmarSenha) {
-      Toast.show({ type: 'error', text1: 'Preencha todos os campos!' });
+      Toast.show({ type: 'error', text1: 'Preencha todos os campos!', visibilityTime: DURACAO_TOAST });
       return;
     }
 
@@ -21,7 +22,8 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
       Toast.show({ 
         type: 'error', 
         text1: 'Senhas não coincidem',
-        text2: 'As senhas digitadas são diferentes.'
+        text2: 'As senhas digitadas são diferentes.',
+        visibilityTime: DURACAO_TOAST,
       });
       return;
     }
@@ -30,7 +32,8 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
       Toast.show({ 
         type: 'error', 
         text1: 'Senha fraca',
-        text2: 'A senha deve ter pelo menos 6 caracteres.'
+        text2: 'A senha deve ter pelo menos 6 caracteres.',
+        visibilityTime: DURACAO_TOAST,
       });
       return;
     }
@@ -39,7 +42,7 @@ export default function Register({ onRegisterSuccess, onNavigateToLogin }) {
     if (res.sucesso) {
       onRegisterSuccess();
     } else {
-      Toast.show({ type: 'error', text1: 'Erro no Cadastro', text2: res.erro });
+      Toast.show({ type: 'error', text1: 'Erro no Cadastro', text2: res.erro, visibilityTime: DURACAO_TOAST });
     }
   };
 

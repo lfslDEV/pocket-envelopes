@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { fazerLogin } from './storage';
+import { DURACAO_TOAST } from './config';
 
 export default function Login({ onLoginSuccess, onNavigateToRegister }) {
   const [email, setEmail] = useState('');
@@ -10,16 +11,16 @@ export default function Login({ onLoginSuccess, onNavigateToRegister }) {
   const handleLogin = async () => {
     Keyboard.dismiss();
     if (!email || !senha) {
-      Toast.show({ type: 'error', text1: 'Preencha todos os campos!' });
+      Toast.show({ type: 'error', text1: 'Preencha todos os campos!', visibilityTime: DURACAO_TOAST });
       return;
     }
 
     const res = await fazerLogin(email, senha);
     if (res.sucesso) {
-      Toast.show({ type: 'success', text1: 'Login aprovado!' });
+      Toast.show({ type: 'success', text1: 'Login aprovado!', visibilityTime: DURACAO_TOAST });
       onLoginSuccess(email);
     } else {
-      Toast.show({ type: 'error', text1: 'Erro no Login', text2: res.erro });
+      Toast.show({ type: 'error', text1: 'Erro no Login', text2: res.erro, visibilityTime: DURACAO_TOAST });
     }
   };
 
