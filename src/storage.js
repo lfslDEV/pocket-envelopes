@@ -151,3 +151,17 @@ export const removerEnvelope = async (id) => {
     throw error;
   }
 };
+
+export const registrarDespesa = async (id, valorDespesa, saldoAtual, reciboUri) => {
+  try {
+    const envelopeRef = ref(db, `envelopes/${id}`);
+    await update(envelopeRef, {
+      saldo: saldoAtual - valorDespesa,
+      valorDespesa,
+      reciboUri,
+    });
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao registrar despesa. Tente novamente.');
+    throw error;
+  }
+};

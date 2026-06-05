@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -12,7 +12,7 @@ import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
-import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail } from './src/storage';
+import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa } from './src/storage';
 
 export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
@@ -24,6 +24,11 @@ export function Painel({ userEmail, onLogout }) {
 
   const [mapaVisivel, setMapaVisivel] = useState(false);
   const [localSelecionado, setLocalSelecionado] = useState(null);
+
+  const [modalValorVisivel, setModalValorVisivel] = useState(false);
+  const [inputValorDespesa, setInputValorDespesa] = useState('');
+  const [envelopeParaDespesa, setEnvelopeParaDespesa] = useState(null);
+  const [valorDespesaTemp, setValorDespesaTemp] = useState(null);
 
   useEffect(() => {
     const carregarUsuario = async () => {
@@ -81,19 +86,39 @@ export function Painel({ userEmail, onLogout }) {
     }
   };
 
-  const abrirCamera = (idEnvelope) => {
-    setEnvelopeParaFoto(idEnvelope);
+  const abrirModalValor = (idEnvelope) => {
+    const envelope = envelopes.find(e => e.id === idEnvelope);
+    setEnvelopeParaDespesa(envelope);
+    setInputValorDespesa('');
+    setModalValorVisivel(true);
+  };
+
+  const confirmarValor = () => {
+    const valor = Number(inputValorDespesa);
+    if (isNaN(valor)) {
+      Alert.alert('Erro', 'Valor inválido. Digite um número.');
+      return;
+    }
+    if (valor <= 0) {
+      Alert.alert('Erro', 'O valor da despesa deve ser maior que zero.');
+      return;
+    }
+    setValorDespesaTemp(valor);
+    setModalValorVisivel(false);
+    setEnvelopeParaFoto(envelopeParaDespesa.id);
     setCameraVisivel(true);
   };
 
-  const salvarFotoNoEnvelope = async (photoUri) => {
+  const salvarDespesaNoEnvelope = async (photoUri) => {
     try {
-      await atualizarEnvelope(envelopeParaFoto, { reciboUri: photoUri });
+      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, photoUri);
       setCameraVisivel(false);
       setEnvelopeParaFoto(null);
+      setValorDespesaTemp(null);
+      setEnvelopeParaDespesa(null);
       Toast.show({ type: 'success', text1: 'Recibo salvo!' });
-    } catch (error) {
-      console.log("Erro ao salvar recibo", error);
+    } catch {
+      // erro já tratado em storage.js
     }
   };
 
@@ -144,7 +169,7 @@ export function Painel({ userEmail, onLogout }) {
           <ListEnvelopes 
             sections={prepararSeccoes()} 
             deleteEnvelope={deleteEnvelope} 
-            openCamera={abrirCamera}
+            openCamera={abrirModalValor}
             openMapa={abrirMapa} 
           />
         </View>
@@ -153,13 +178,51 @@ export function Painel({ userEmail, onLogout }) {
       <CameraComponent 
         visivel={cameraVisivel} 
         onClose={() => setCameraVisivel(false)} 
-        onSavePhoto={salvarFotoNoEnvelope} 
+        onSavePhoto={salvarDespesaNoEnvelope} 
       />
       <MapaComponent 
         visivel={mapaVisivel} 
         onClose={() => setMapaVisivel(false)} 
         localizacao={localSelecionado} 
       />
+
+      <Modal
+        visible={modalValorVisivel}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalValorVisivel(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitulo}>{envelopeParaDespesa?.nome}</Text>
+            <Text style={styles.modalSaldo}>
+              Saldo disponível: R$ {envelopeParaDespesa?.saldo ?? '—'}
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Valor da despesa (ex: 50.00)"
+              value={inputValorDespesa}
+              onChangeText={setInputValorDespesa}
+              keyboardType="numeric"
+              autoFocus
+            />
+            <View style={styles.modalBotoes}>
+              <TouchableOpacity
+                style={[styles.modalBotao, styles.modalBotaoCancelar]}
+                onPress={() => setModalValorVisivel(false)}
+              >
+                <Text style={styles.modalBotaoTexto}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBotao, styles.modalBotaoConfirmar]}
+                onPress={confirmarValor}
+              >
+                <Text style={styles.modalBotaoTexto}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -336,5 +399,59 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  }
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCard: {
+    width: '85%',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 24,
+    elevation: 4,
+  },
+  modalTitulo: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+  },
+  modalSaldo: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 16,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  modalBotoes: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  modalBotao: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 6,
+  },
+  modalBotaoCancelar: {
+    backgroundColor: '#95a5a6',
+  },
+  modalBotaoConfirmar: {
+    backgroundColor: '#27ae60',
+  },
+  modalBotaoTexto: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
 });

@@ -51,6 +51,9 @@ export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, op
             <View style={styles.budgetContainer}>
               <Text style={styles.budgetText}>Orçamento: R$ {item.orcamento ?? '—'}</Text>
               <Text style={styles.budgetText}>Saldo: R$ {item.saldo ?? '—'}</Text>
+              {item.valorDespesa != null && (
+                <Text style={styles.despesaText}>Última despesa: R$ {item.valorDespesa}</Text>
+              )}
             </View>
 
             <View style={styles.actionsContainer}>
@@ -161,5 +164,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     marginBottom: 3
+  },
+  despesaText: {
+    fontSize: 13,
+    color: '#c0392b',
+    marginTop: 2
   }
 });
