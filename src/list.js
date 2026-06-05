@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View, Text, SectionList, TouchableOpacity, Image } from 'react-native';
 
-export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, openMapa }) {
+export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, openMapa, openTransferencia }) {
   const [colapsados, setColapsados] = useState({});
 
   const togglePasta = (title) => {
@@ -69,6 +69,10 @@ export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, op
                   <Text style={styles.btnMapaText}>📍 Local</Text>
                 </TouchableOpacity>
               )}
+
+              <TouchableOpacity style={styles.btnTransferencia} onPress={() => openTransferencia(item)}>
+                <Text style={styles.btnTransferenciaText}>⇄ Transferir</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -151,6 +155,16 @@ const styles = StyleSheet.create({
   },
   btnMapaText: {
     color: '#2980b9',
+    fontSize: 12,
+    fontWeight: 'bold'
+  },
+  btnTransferencia: {
+    backgroundColor: '#eaf4e8',
+    padding: 8,
+    borderRadius: 6
+  },
+  btnTransferenciaText: {
+    color: '#27ae60',
     fontSize: 12,
     fontWeight: 'bold'
   },

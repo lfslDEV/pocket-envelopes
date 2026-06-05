@@ -165,3 +165,15 @@ export const registrarDespesa = async (id, valorDespesa, saldoAtual, reciboUri) 
     throw error;
   }
 };
+
+export const transferirSaldo = async (origemId, destinoId, valor, saldoOrigem, saldoDestino) => {
+  try {
+    await update(ref(db), {
+      [`envelopes/${origemId}/saldo`]: saldoOrigem - valor,
+      [`envelopes/${destinoId}/saldo`]: saldoDestino + valor,
+    });
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao transferir saldo. Tente novamente.');
+    throw error;
+  }
+};
