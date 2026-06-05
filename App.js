@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -12,7 +12,7 @@ import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
-import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa } from './src/storage';
+import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
 
 export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
@@ -29,6 +29,11 @@ export function Painel({ userEmail, onLogout }) {
   const [inputValorDespesa, setInputValorDespesa] = useState('');
   const [envelopeParaDespesa, setEnvelopeParaDespesa] = useState(null);
   const [valorDespesaTemp, setValorDespesaTemp] = useState(null);
+
+  const [modalTransferenciaVisivel, setModalTransferenciaVisivel] = useState(false);
+  const [envelopeOrigem, setEnvelopeOrigem] = useState(null);
+  const [envelopeDestino, setEnvelopeDestino] = useState(null);
+  const [inputValorTransferencia, setInputValorTransferencia] = useState('');
 
   useEffect(() => {
     const carregarUsuario = async () => {
@@ -127,6 +132,46 @@ export function Painel({ userEmail, onLogout }) {
     setMapaVisivel(true);
   };
 
+  const abrirTransferencia = (envelope) => {
+    setEnvelopeOrigem(envelope);
+    setEnvelopeDestino(null);
+    setInputValorTransferencia('');
+    setModalTransferenciaVisivel(true);
+  };
+
+  const confirmarTransferencia = async () => {
+    const valor = Number(inputValorTransferencia);
+    if (isNaN(valor) || valor <= 0) {
+      Alert.alert('Erro', 'Informe um valor válido maior que zero.');
+      return;
+    }
+    if (!envelopeDestino) {
+      Alert.alert('Erro', 'Selecione um envelope de destino.');
+      return;
+    }
+    if (envelopeOrigem.id === envelopeDestino.id) {
+      Alert.alert('Erro', 'Origem e destino não podem ser o mesmo envelope.');
+      return;
+    }
+    if (valor > (envelopeOrigem.saldo ?? 0)) {
+      Toast.show({ type: 'error', text1: 'Saldo insuficiente' });
+      return;
+    }
+    try {
+      await transferirSaldo(
+        envelopeOrigem.id,
+        envelopeDestino.id,
+        valor,
+        envelopeOrigem.saldo ?? 0,
+        envelopeDestino.saldo ?? 0,
+      );
+      Toast.show({ type: 'success', text1: 'Transferência realizada!' });
+      setModalTransferenciaVisivel(false);
+    } catch {
+      // erro já tratado em storage.js
+    }
+  };
+
   const prepararSeccoes = () => {
     const grupos = envelopes.reduce((acc, current) => {
       const cat = current.categoria || 'Geral'; 
@@ -170,7 +215,8 @@ export function Painel({ userEmail, onLogout }) {
             sections={prepararSeccoes()} 
             deleteEnvelope={deleteEnvelope} 
             openCamera={abrirModalValor}
-            openMapa={abrirMapa} 
+            openMapa={abrirMapa}
+            openTransferencia={abrirTransferencia}
           />
         </View>
       )}
@@ -216,6 +262,78 @@ export function Painel({ userEmail, onLogout }) {
               <TouchableOpacity
                 style={[styles.modalBotao, styles.modalBotaoConfirmar]}
                 onPress={confirmarValor}
+              >
+                <Text style={styles.modalBotaoTexto}>Confirmar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={modalTransferenciaVisivel}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalTransferenciaVisivel(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitulo}>Transferir Saldo</Text>
+
+            <Text style={styles.modalLabel}>Origem</Text>
+            <ScrollView style={styles.pickerLista} nestedScrollEnabled>
+              {envelopes.map(env => (
+                <TouchableOpacity
+                  key={env.id}
+                  style={[
+                    styles.pickerItem,
+                    envelopeOrigem?.id === env.id && styles.pickerItemSelecionado,
+                  ]}
+                  onPress={() => setEnvelopeOrigem(env)}
+                >
+                  <Text style={styles.pickerItemTexto}>
+                    {env.nome} — R$ {env.saldo ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.modalLabel}>Destino</Text>
+            <ScrollView style={styles.pickerLista} nestedScrollEnabled>
+              {envelopes.map(env => (
+                <TouchableOpacity
+                  key={env.id}
+                  style={[
+                    styles.pickerItem,
+                    envelopeDestino?.id === env.id && styles.pickerItemSelecionado,
+                  ]}
+                  onPress={() => setEnvelopeDestino(env)}
+                >
+                  <Text style={styles.pickerItemTexto}>
+                    {env.nome} — R$ {env.saldo ?? 0}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Valor a transferir (ex: 50.00)"
+              value={inputValorTransferencia}
+              onChangeText={setInputValorTransferencia}
+              keyboardType="numeric"
+            />
+
+            <View style={styles.modalBotoes}>
+              <TouchableOpacity
+                style={[styles.modalBotao, styles.modalBotaoCancelar]}
+                onPress={() => setModalTransferenciaVisivel(false)}
+              >
+                <Text style={styles.modalBotaoTexto}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBotao, styles.modalBotaoConfirmar]}
+                onPress={confirmarTransferencia}
               >
                 <Text style={styles.modalBotaoTexto}>Confirmar</Text>
               </TouchableOpacity>
@@ -454,4 +572,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: 'bold',
   },
+  modalLabel: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 4, marginTop: 8 },
+  pickerLista: { maxHeight: 110, borderWidth: 1, borderColor: '#eee', borderRadius: 6, marginBottom: 6 },
+  pickerItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  pickerItemSelecionado: { backgroundColor: '#e8f8f0' },
+  pickerItemTexto: { fontSize: 14, color: '#333' },
 });
