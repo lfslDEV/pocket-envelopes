@@ -78,16 +78,20 @@ export const buscarUsuarioPorEmail = async (email) => {
   }
 };
 
-export const criarEnvelope = async ({ nome, categoria }) => {
+export const criarEnvelope = async ({ nome, categoria, orcamento }) => {
   try {
     const envelopesRef = ref(db, 'envelopes');
     const createdAt = new Date().toISOString();
+    const saldo = orcamento;
+    
     const newRef = await push(envelopesRef, { 
       nome, 
       categoria, 
       reciboUri: null, 
       localizacao: null, 
-      createdAt 
+      createdAt,
+      orcamento,
+      saldo
     });
     return newRef.key;
   } catch (error) {

@@ -39,14 +39,14 @@ export function Painel({ userEmail, onLogout }) {
     return () => unsubscribe();
   }, [userEmail]);
 
-  const addEnvelope = async (nome, categoria) => {
+  const addEnvelope = async (nome, categoria, orcamento) => {
     if (nome === '') {
       Toast.show({ type: 'error', text1: 'Nome Vazio' });
       return;
     }
 
     try {
-      const pushKey = await criarEnvelope({ nome, categoria });
+      const pushKey = await criarEnvelope({ nome, categoria, orcamento });
       Toast.show({ type: 'success', text1: 'Envelope criado!' });
 
       try {
