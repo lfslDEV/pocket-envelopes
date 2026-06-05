@@ -83,12 +83,28 @@ export function Painel({ userEmail, onLogout }) {
     }
   };
 
-  const deleteEnvelope = async (id) => {
-    try {
-      await removerEnvelope(id);
-    } catch (error) {
-      console.log("Erro ao remover envelope", error);
-    }
+  const deleteEnvelope = (id) => {
+    const envelope = envelopes.find(e => e.id === id);
+    const nome = envelope ? envelope.nome : 'este envelope';
+
+    Alert.alert(
+      'Excluir envelope',
+      `Excluir o envelope "${nome}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await removerEnvelope(id);
+            } catch (error) {
+              console.log('Erro ao remover envelope', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const abrirModalValor = (idEnvelope) => {
