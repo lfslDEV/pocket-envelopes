@@ -214,6 +214,7 @@ export function Painel({ userEmail, onLogout }) {
           user={userData}
           onBack={() => setShowProfile(false)}
           onLogout={onLogout}
+          onUserUpdate={(usuarioAtualizado) => setUserData(usuarioAtualizado)}
         />
       ) : (
         <View style={styles.innerPainel}>

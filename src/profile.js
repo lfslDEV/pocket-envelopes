@@ -1,7 +1,129 @@
-import React from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import {
+    StyleSheet,
+    Text,
+    View,
+    TouchableOpacity,
+    ScrollView,
+    Image,
+    Alert,
+    ActivityIndicator,
+} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { atualizarFotoUsuario } from './storage';
 
-export default function Profile({ user, onBack, onLogout }) {
+// Ícone SVG inline como placeholder (círculo com inicial)
+function AvatarPlaceholder({ inicial }) {
+    return (
+        <View style={styles.avatarPlaceholder}>
+            <Text style={styles.avatarText}>{inicial}</Text>
+        </View>
+    );
+}
+
+export default function Profile({ user, onBack, onLogout, onUserUpdate }) {
+    const [fotoUri, setFotoUri] = useState(user?.fotoUri ?? null);
+    const [salvando, setSalvando] = useState(false);
+
+    const inicial = user?.nome ? user.nome.charAt(0).toUpperCase() : 'U';
+
+    const persistirFoto = async (uri) => {
+        if (!user?.email) return;
+        setSalvando(true);
+        const res = await atualizarFotoUsuario(user.email, uri);
+        setSalvando(false);
+        if (res.sucesso) {
+            onUserUpdate?.(res.usuario);
+        } else {
+            Alert.alert('Erro', res.erro);
+        }
+    };
+
+    const pedirPermissaoGaleria = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Permissão necessária',
+                'Precisamos de acesso à galeria para escolher uma foto.',
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const pedirPermissaoCamera = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Permissão necessária',
+                'Precisamos de acesso à câmera para tirar uma foto.',
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const abrirGaleria = async () => {
+        const ok = await pedirPermissaoGaleria();
+        if (!ok) return;
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled && result.assets?.[0]?.uri) {
+            const uri = result.assets[0].uri;
+            setFotoUri(uri);
+            await persistirFoto(uri);
+        }
+    };
+
+    const abrirCamera = async () => {
+        const ok = await pedirPermissaoCamera();
+        if (!ok) return;
+
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+        });
+
+        if (!result.canceled && result.assets?.[0]?.uri) {
+            const uri = result.assets[0].uri;
+            setFotoUri(uri);
+            await persistirFoto(uri);
+        }
+    };
+
+    const removerFoto = () => {
+        Alert.alert('Remover foto', 'Deseja remover a foto de perfil?', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+                text: 'Remover',
+                style: 'destructive',
+                onPress: async () => {
+                    setFotoUri(null);
+                    await persistirFoto(null);
+                },
+            },
+        ]);
+    };
+
+    const abrirOpcoes = () => {
+        const opcoes = [
+            { text: 'Tirar foto', onPress: abrirCamera },
+            { text: 'Escolher da galeria', onPress: abrirGaleria },
+        ];
+        if (fotoUri) {
+            opcoes.push({ text: 'Remover foto', style: 'destructive', onPress: removerFoto });
+        }
+        opcoes.push({ text: 'Cancelar', style: 'cancel' });
+        Alert.alert('Foto de perfil', 'Como deseja atualizar a foto?', opcoes);
+    };
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -14,16 +136,27 @@ export default function Profile({ user, onBack, onLogout }) {
 
             <ScrollView style={styles.content}>
                 <View style={styles.avatarContainer}>
-                    <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                            {user?.nome ? user.nome.charAt(0).toUpperCase() : 'U'}
-                        </Text>
-                    </View>
+                    <TouchableOpacity onPress={abrirOpcoes} activeOpacity={0.8}>
+                        {fotoUri ? (
+                            <Image source={{ uri: fotoUri }} style={styles.avatarImage} />
+                        ) : (
+                            <AvatarPlaceholder inicial={inicial} />
+                        )}
+                        {salvando && (
+                            <View style={styles.savingOverlay}>
+                                <ActivityIndicator color="#fff" />
+                            </View>
+                        )}
+                        <View style={styles.editBadge}>
+                            <Text style={styles.editBadgeText}>✏️</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <Text style={styles.editHint}>Toque para alterar a foto</Text>
                 </View>
 
                 <View style={styles.infoCard}>
                     <Text style={styles.cardTitle}>Informações Pessoais</Text>
-                    
+
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>Nome</Text>
                         <Text style={styles.infoValue}>{user?.nome || 'Usuário'}</Text>
@@ -44,6 +177,8 @@ export default function Profile({ user, onBack, onLogout }) {
         </View>
     );
 }
+
+const AVATAR_SIZE = 110;
 
 const styles = StyleSheet.create({
     container: {
@@ -85,19 +220,56 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginVertical: 32,
     },
-    avatar: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
+    avatarPlaceholder: {
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        borderRadius: AVATAR_SIZE / 2,
         backgroundColor: '#27ae60',
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 4,
     },
+    avatarImage: {
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        borderRadius: AVATAR_SIZE / 2,
+        elevation: 4,
+    },
     avatarText: {
-        fontSize: 40,
+        fontSize: 42,
         fontWeight: 'bold',
         color: '#fff',
+    },
+    savingOverlay: {
+        position: 'absolute',
+        width: AVATAR_SIZE,
+        height: AVATAR_SIZE,
+        borderRadius: AVATAR_SIZE / 2,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    editBadge: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        backgroundColor: '#fff',
+        elevation: 3,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#ddd',
+    },
+    editBadgeText: {
+        fontSize: 14,
+    },
+    editHint: {
+        marginTop: 10,
+        fontSize: 13,
+        color: '#888',
     },
     infoCard: {
         backgroundColor: '#fff',
