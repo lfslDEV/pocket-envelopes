@@ -14,6 +14,7 @@ import Register from './src/register';
 import Profile from './src/profile';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
 import { DURACAO_TOAST } from './src/config';
+import { colors, typography, spacing, radius, shadow } from './src/theme';
 
 export function Painel({ userEmail, onLogout }) {
   const [envelopes, setEnvelopes] = useState([]);
@@ -287,7 +288,7 @@ export function Painel({ userEmail, onLogout }) {
                 style={[styles.modalBotao, styles.modalBotaoCancelar]}
                 onPress={() => setModalValorVisivel(false)}
               >
-                <Text style={styles.modalBotaoTexto}>Cancelar</Text>
+                <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBotao, styles.modalBotaoConfirmar]}
@@ -359,7 +360,7 @@ export function Painel({ userEmail, onLogout }) {
                 style={[styles.modalBotao, styles.modalBotaoCancelar]}
                 onPress={() => setModalTransferenciaVisivel(false)}
               >
-                <Text style={styles.modalBotaoTexto}>Cancelar</Text>
+                <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalBotao, styles.modalBotaoConfirmar]}
@@ -488,7 +489,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   centerContent: {
     flex: 1,
@@ -502,125 +503,156 @@ const styles = StyleSheet.create({
   },
   innerPainel: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#27ae60',
+    fontSize: typography.xxl,
+    fontWeight: typography.bold,
+    color: colors.brand,
   },
   profileAvatarButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: radius.full,
     overflow: 'hidden',
-    elevation: 3,
+    ...shadow.card,
   },
   profileAvatarImage: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: radius.full,
   },
   profileAvatarPlaceholder: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: '#3498db',
+    borderRadius: radius.full,
+    backgroundColor: colors.accent,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileAvatarText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: colors.textOnDark,
+    fontSize: typography.md,
+    fontWeight: typography.bold,
   },
   textoAviso: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: typography.xl,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
   },
   textoSubAviso: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 30,
-    marginTop: 5,
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg + spacing.md,
+    marginTop: spacing.xs,
   },
   botao: {
-    backgroundColor: '#27ae60',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    elevation: 2,
+    backgroundColor: colors.brand,
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
+    ...shadow.card,
   },
   textoBotao: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: colors.textOnDark,
+    fontSize: typography.base,
+    fontWeight: typography.bold,
   },
+
+  // ── Modais ──
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: spacing.xl,
   },
   modalCard: {
-    width: '85%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 24,
-    elevation: 4,
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    ...shadow.modal,
   },
   modalTitulo: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 6,
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   modalSaldo: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 16,
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.base,
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
-    marginBottom: 20,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    fontSize: typography.base,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceAlt,
+    marginBottom: spacing.lg,
   },
   modalBotoes: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
+    gap: spacing.md,
   },
   modalBotao: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 6,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.sm,
   },
   modalBotaoCancelar: {
-    backgroundColor: '#95a5a6',
+    backgroundColor: colors.gray200,
   },
   modalBotaoConfirmar: {
-    backgroundColor: '#27ae60',
+    backgroundColor: colors.brand,
   },
   modalBotaoTexto: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
+    color: colors.textOnDark,
+    fontSize: typography.base,
+    fontWeight: typography.bold,
   },
-  modalLabel: { fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 4, marginTop: 8 },
-  pickerLista: { maxHeight: 110, borderWidth: 1, borderColor: '#eee', borderRadius: 6, marginBottom: 6 },
-  pickerItem: { padding: 10, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
-  pickerItemSelecionado: { backgroundColor: '#e8f8f0' },
-  pickerItemTexto: { fontSize: 14, color: '#333' },
+  modalBotaoCancelarTexto: {
+    color: colors.textSecondary,
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+  },
+  modalLabel: {
+    fontSize: typography.sm,
+    fontWeight: typography.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  pickerLista: {
+    maxHeight: 110,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    marginBottom: spacing.sm,
+  },
+  pickerItem: {
+    padding: spacing.sm + 2,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  pickerItemSelecionado: {
+    backgroundColor: colors.brandLight,
+  },
+  pickerItemTexto: {
+    fontSize: typography.sm,
+    color: colors.textPrimary,
+  },
 });

@@ -1,187 +1,488 @@
 import { useState } from 'react';
-import { StyleSheet, View, Text, SectionList, TouchableOpacity, Image } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  Text,
+  SectionList,
+  TouchableOpacity,
+  Image,
+  Modal,
+} from 'react-native';
+import { colors, typography, spacing, radius, shadow, healthColor } from './theme';
 
-export default function ListEnvelopes({ sections, deleteEnvelope, openCamera, openMapa, openTransferencia }) {
+// ─── Barra de progresso ────────────────────────────────────────────────────────
+function ProgressBar({ orcamento, saldo }) {
+  if (orcamento == null || orcamento <= 0) return null;
+
+  const gasto = orcamento - saldo;
+  const pct = Math.min(Math.max(gasto / orcamento, 0), 1);
+  const hc = healthColor(saldo, orcamento);
+
+  return (
+    <View style={styles.progressTrack}>
+      <View
+        style={[
+          styles.progressFill,
+          { width: `${pct * 100}%`, backgroundColor: hc.border },
+        ]}
+      />
+    </View>
+  );
+}
+
+// ─── Modal de confirmação de delete ───────────────────────────────────────────
+function DeleteModal({ visivel, nomePasta, onConfirm, onCancel }) {
+  return (
+    <Modal
+      visible={visivel}
+      transparent
+      animationType="fade"
+      onRequestClose={onCancel}
+    >
+      <View style={styles.deleteOverlay}>
+        <View style={styles.deleteCard}>
+          <View style={styles.deleteIconWrap}>
+            <Text style={styles.deleteIcon}>🗑️</Text>
+          </View>
+          <Text style={styles.deleteTitulo}>Excluir envelope</Text>
+          <Text style={styles.deleteDescricao}>
+            Tem certeza que deseja excluir{' '}
+            <Text style={styles.deleteNome}>"{nomePasta}"</Text>?{'\n'}
+            Essa ação não pode ser desfeita.
+          </Text>
+          <View style={styles.deleteBotoes}>
+            <TouchableOpacity
+              style={[styles.deleteBotao, styles.deleteCancelar]}
+              onPress={onCancel}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.deleteCancelarTexto}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.deleteBotao, styles.deleteConfirmar]}
+              onPress={onConfirm}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.deleteConfirmarTexto}>Excluir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Componente principal ──────────────────────────────────────────────────────
+export default function ListEnvelopes({
+  sections,
+  deleteEnvelope,
+  openCamera,
+  openMapa,
+  openTransferencia,
+}) {
   const [colapsados, setColapsados] = useState({});
+  const [deleteAlvo, setDeleteAlvo] = useState(null); // { id, nome }
 
   const togglePasta = (title) => {
-    setColapsados(prev => ({
-      ...prev,
-      [title]: !prev[title]
-    }));
+    setColapsados((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const seccoesFiltradas = sections.map(seccao => ({
+  const seccoesFiltradas = sections.map((seccao) => ({
     ...seccao,
-    data: colapsados[seccao.title] ? [] : seccao.data
+    data: colapsados[seccao.title] ? [] : seccao.data,
   }));
+
+  const pedirDelete = (id, nome) => setDeleteAlvo({ id, nome });
+
+  const confirmarDelete = () => {
+    if (deleteAlvo) {
+      deleteEnvelope(deleteAlvo.id);
+      setDeleteAlvo(null);
+    }
+  };
 
   return (
     <View style={styles.listContainer}>
       <SectionList
         sections={seccoesFiltradas}
         keyExtractor={(item) => item.id}
-        
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={styles.listContent}
         renderSectionHeader={({ section: { title } }) => {
           const estaFechado = colapsados[title];
-          const totalItens = sections.find(s => s.title === title).data.length;
+          const totalItens = sections.find((s) => s.title === title).data.length;
 
           return (
-            <TouchableOpacity 
-              style={styles.headerPasta} 
+            <TouchableOpacity
+              style={styles.headerPasta}
               activeOpacity={0.7}
               onPress={() => togglePasta(title)}
             >
-              <Text style={styles.textoPasta}>
-                {estaFechado ? '📁' : '📂'} {title} <Text style={styles.contador}>({totalItens})</Text>
-              </Text>
+              <Text style={styles.chevron}>{estaFechado ? '›' : '⌄'}</Text>
+              <Text style={styles.textoPasta}>{title}</Text>
+              <View style={styles.contadorBadge}>
+                <Text style={styles.contador}>{totalItens}</Text>
+              </View>
             </TouchableOpacity>
           );
         }}
+        renderItem={({ item }) => {
+          const hc = healthColor(item.saldo ?? 0, item.orcamento);
+          const saldoFormatado =
+            item.saldo != null ? Number(item.saldo).toFixed(2) : '—';
+          const orcamentoFormatado =
+            item.orcamento != null ? Number(item.orcamento).toFixed(2) : '—';
 
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.textoItem}>{item.nome}</Text>
-              <TouchableOpacity onPress={() => deleteEnvelope(item.id)}>
-                <Text style={styles.deleteText}>Excluir</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.budgetContainer}>
-              <Text style={styles.budgetText}>Orçamento: R$ {item.orcamento ?? '—'}</Text>
-              <Text style={styles.budgetText}>Saldo: R$ {item.saldo ?? '—'}</Text>
-              {item.valorDespesa != null && (
-                <Text style={styles.despesaText}>Última despesa: R$ {item.valorDespesa}</Text>
-              )}
-            </View>
-
-            <View style={styles.actionsContainer}>
-              <View style={styles.reciboWrapper}>
-                {item.reciboUri && <Image source={{ uri: item.reciboUri }} style={styles.miniatura} />}
-                <TouchableOpacity style={styles.btnAction} onPress={() => openCamera(item.id)}>
-                  <Text style={styles.btnActionText}>📷 Recibo</Text>
+          return (
+            <View
+              style={[
+                styles.card,
+                { borderLeftColor: hc.border },
+              ]}
+            >
+              {/* Cabeçalho do card */}
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardNome} numberOfLines={1}>
+                  {item.nome}
+                </Text>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => pedirDelete(item.id, item.nome)}
+                >
+                  <Text style={styles.deleteText}>✕</Text>
                 </TouchableOpacity>
               </View>
 
-              {item.localizacao && (
-                <TouchableOpacity style={styles.btnMapa} onPress={() => openMapa(item.localizacao)}>
-                  <Text style={styles.btnMapaText}>📍 Local</Text>
-                </TouchableOpacity>
-              )}
+              {/* Saldo e orçamento */}
+              <View style={styles.valoresRow}>
+                <View style={styles.valorBloco}>
+                  <Text style={styles.valorLabel}>Disponível</Text>
+                  <Text style={[styles.valorNumero, { color: hc.text }]}>
+                    R$ {saldoFormatado}
+                  </Text>
+                </View>
+                <View style={styles.valorDivisor} />
+                <View style={styles.valorBloco}>
+                  <Text style={styles.valorLabel}>Orçamento</Text>
+                  <Text style={styles.valorNumeroNeutro}>
+                    R$ {orcamentoFormatado}
+                  </Text>
+                </View>
+                {item.valorDespesa != null && (
+                  <>
+                    <View style={styles.valorDivisor} />
+                    <View style={styles.valorBloco}>
+                      <Text style={styles.valorLabel}>Última despesa</Text>
+                      <Text style={styles.valorDespesa}>
+                        − R$ {Number(item.valorDespesa).toFixed(2)}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
 
-              <TouchableOpacity style={styles.btnTransferencia} onPress={() => openTransferencia(item)}>
-                <Text style={styles.btnTransferenciaText}>⇄ Transferir</Text>
-              </TouchableOpacity>
+              {/* Barra de progresso */}
+              <ProgressBar orcamento={item.orcamento} saldo={item.saldo ?? 0} />
+
+              {/* Ações */}
+              <View style={styles.actionsRow}>
+                <View style={styles.reciboWrapper}>
+                  {item.reciboUri && (
+                    <Image
+                      source={{ uri: item.reciboUri }}
+                      style={styles.miniatura}
+                    />
+                  )}
+                  <TouchableOpacity
+                    style={styles.btnAction}
+                    onPress={() => openCamera(item.id)}
+                  >
+                    <Text style={styles.btnActionText}>📷 Recibo</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {item.localizacao && (
+                  <TouchableOpacity
+                    style={[styles.btnAction, styles.btnMapa]}
+                    onPress={() => openMapa(item.localizacao)}
+                  >
+                    <Text style={[styles.btnActionText, styles.btnMapaText]}>
+                      📍 Local
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  style={[styles.btnAction, styles.btnTransferencia]}
+                  onPress={() => openTransferencia(item)}
+                >
+                  <Text style={[styles.btnActionText, styles.btnTransferenciaText]}>
+                    ⇄ Transferir
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
+          );
+        }}
+      />
+
+      <DeleteModal
+        visivel={deleteAlvo !== null}
+        nomePasta={deleteAlvo?.nome ?? ''}
+        onConfirm={confirmarDelete}
+        onCancel={() => setDeleteAlvo(null)}
       />
     </View>
   );
 }
 
+// ─── Estilos ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  listContainer: { flex: 1, paddingBottom: 20 },
+  listContainer: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 32,
+  },
+
+  // ── Cabeçalho de seção ──
   headerPasta: {
-    backgroundColor: '#e1e8ed',
-    padding: 12,
-    marginTop: 15,
-    borderRadius: 8,
-    borderLeftWidth: 5,
-    borderLeftColor: '#3498db',
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs,
+    gap: spacing.xs,
+  },
+  chevron: {
+    fontSize: typography.md,
+    color: colors.textMuted,
+    width: 16,
+    textAlign: 'center',
   },
   textoPasta: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#2c3e50',
-    textTransform: 'uppercase'
+    flex: 1,
+    fontSize: typography.sm,
+    fontWeight: typography.semibold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  contadorBadge: {
+    backgroundColor: colors.gray200,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
   },
   contador: {
-    fontSize: 14,
-    color: '#7f8c8d',
-    fontWeight: 'normal'
+    fontSize: typography.xs,
+    color: colors.gray600,
+    fontWeight: typography.semibold,
   },
+
+  // ── Card ──
   card: {
-    backgroundColor: '#fff',
-    padding: 15,
-    marginTop: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee'
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.base,
+    marginBottom: spacing.sm,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.border,
+    ...shadow.card,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  textoItem: {
-    fontSize: 18,
-    fontWeight: '500'
+  cardNome: {
+    flex: 1,
+    fontSize: typography.md,
+    fontWeight: typography.semibold,
+    color: colors.textPrimary,
+    marginRight: spacing.sm,
   },
   deleteText: {
-    color: '#e74c3c'
+    fontSize: typography.sm,
+    color: colors.textMuted,
+    fontWeight: typography.bold,
   },
-  actionsContainer: {
+
+  // ── Valores ──
+  valoresRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  valorBloco: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  valorDivisor: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.xs,
+  },
+  valorLabel: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    fontWeight: typography.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  valorNumero: {
+    fontSize: typography.md,
+    fontWeight: typography.bold,
+  },
+  valorNumeroNeutro: {
+    fontSize: typography.md,
+    fontWeight: typography.semibold,
+    color: colors.textPrimary,
+  },
+  valorDespesa: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.danger,
+  },
+
+  // ── Progresso ──
+  progressTrack: {
+    height: 4,
+    backgroundColor: colors.gray100,
+    borderRadius: radius.full,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radius.full,
+  },
+
+  // ── Ações ──
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   reciboWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10
+    gap: spacing.sm,
   },
   miniatura: {
-    width: 35,
-    height: 35,
-    borderRadius: 4
+    width: 32,
+    height: 32,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   btnAction: {
-    backgroundColor: '#f1f2f6',
-    padding: 8,
-    borderRadius: 6
+    backgroundColor: colors.surfaceAlt,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.sm + 2,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   btnActionText: {
-    fontSize: 12,
-    fontWeight: '600'
+    fontSize: typography.xs,
+    fontWeight: typography.semibold,
+    color: colors.textSecondary,
   },
   btnMapa: {
-    backgroundColor: '#e8f4f8',
-    padding: 8,
-    borderRadius: 6
+    backgroundColor: colors.accentLight,
+    borderColor: '#BFDBFE',
   },
   btnMapaText: {
-    color: '#2980b9',
-    fontSize: 12,
-    fontWeight: 'bold'
+    color: colors.accent,
   },
   btnTransferencia: {
-    backgroundColor: '#eaf4e8',
-    padding: 8,
-    borderRadius: 6
+    backgroundColor: colors.brandLight,
+    borderColor: '#BBF7D0',
   },
   btnTransferenciaText: {
-    color: '#27ae60',
-    fontSize: 12,
-    fontWeight: 'bold'
+    color: colors.brandDark,
   },
-  budgetContainer: {
-    marginBottom: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#eee'
+
+  // ── Modal de delete ──
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
   },
-  budgetText: {
-    fontSize: 14,
-    color: '#555',
-    marginBottom: 3
+  deleteCard: {
+    width: '100%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    ...shadow.modal,
   },
-  despesaText: {
-    fontSize: 13,
-    color: '#c0392b',
-    marginTop: 2
-  }
+  deleteIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: colors.dangerLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.base,
+  },
+  deleteIcon: {
+    fontSize: 26,
+  },
+  deleteTitulo: {
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  deleteDescricao: {
+    fontSize: typography.base,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.xl,
+  },
+  deleteNome: {
+    fontWeight: typography.semibold,
+    color: colors.textPrimary,
+  },
+  deleteBotoes: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    width: '100%',
+  },
+  deleteBotao: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  deleteCancelar: {
+    backgroundColor: colors.gray100,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  deleteCancelarTexto: {
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.textSecondary,
+  },
+  deleteConfirmar: {
+    backgroundColor: colors.danger,
+  },
+  deleteConfirmarTexto: {
+    fontSize: typography.base,
+    fontWeight: typography.bold,
+    color: colors.textOnDark,
+  },
 });
