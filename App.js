@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, ScrollView } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -220,11 +220,23 @@ export function Painel({ userEmail, onLogout }) {
         <View style={styles.innerPainel}>
           <View style={styles.header}>
             <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
-            <TouchableOpacity 
-              style={styles.profileButton} 
+            <TouchableOpacity
+              style={styles.profileAvatarButton}
               onPress={() => setShowProfile(true)}
+              activeOpacity={0.8}
             >
-              <Text style={styles.profileButtonText}>Perfil</Text>
+              {userData?.fotoUri ? (
+                <Image
+                  source={{ uri: userData.fotoUri }}
+                  style={styles.profileAvatarImage}
+                />
+              ) : (
+                <View style={styles.profileAvatarPlaceholder}>
+                  <Text style={styles.profileAvatarText}>
+                    {userData?.nome ? userData.nome.charAt(0).toUpperCase() : '?'}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           <AddEnvelope addEnvelope={addEnvelope} categorias={categoriasExistentes} />
@@ -504,15 +516,29 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#27ae60',
   },
-  profileButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+  profileAvatarButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    overflow: 'hidden',
+    elevation: 3,
   },
-  profileButtonText: {
+  profileAvatarImage: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+  },
+  profileAvatarPlaceholder: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileAvatarText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
   },
   textoAviso: {
