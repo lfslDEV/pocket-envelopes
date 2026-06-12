@@ -1,0 +1,30 @@
+appId: com.anonymous.pocketenvelopes
+---
+- launchApp:
+    clearState: true
+- runFlow: "login_flow.yaml"
+- tapOn: "Nome do Envelope (ex: Internet)"
+- inputText: "Internet"
+- tapOn: "Pasta/Categoria (ex: Contas)"
+- inputText: "Contas"
+- tapOn: "Orçamento (ex: 500)"
+- inputText: "500"
+- tapOn: "Adicionar Novo Envelope"
+- tapOn: "Nome do Envelope (ex: Internet)"
+- inputText: "mercado"
+- tapOn: "Pasta/Categoria (ex: Contas)"
+- inputText: "Compras"
+- tapOn: "Orçamento (ex: 500)"
+- inputText: "500"
+- tapOn: "Adicionar Novo Envelope"
+- doubleTapOn: "⇄ Transferir"
+- tapOn:
+    text: "Internet — R$ 500"
+    index: -1
+- tapOn: "Valor a transferir (ex: 50.00)"
+- inputText: "50"
+- tapOn: "Confirmar"
+- tapOn: "✕"
+- tapOn:
+    text: "✕"
+    index: 1

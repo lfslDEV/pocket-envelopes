@@ -1,0 +1,11 @@
+appId: com.example.app
+---
+- launchApp:
+    clearState: true
+- runFlow: "envelope_fluxo.yaml"
+- tapOn:
+    point: 84%,8%
+- tapOn:
+    point: 37%,22%
+- tapOn: "CANCELAR"
+- tapOn: "Sair da Conta"
