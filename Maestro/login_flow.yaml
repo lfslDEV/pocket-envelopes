@@ -1,0 +1,19 @@
+appId: com.anonymous.pocketenvelopes
+---
+- launchApp:
+    clearState: true
+- tapOn: "Não tem conta? Cadastre-se aqui"
+- tapOn: "Seu Nome"
+- inputText: "Onaza"
+- tapOn: "E-mail"
+- inputText: ${email}
+- tapOn: "Senha"
+- inputText: ${password}
+- tapOn: "Confirmar Senha"
+- inputText: ${password}
+- doubleTapOn: "Cadastrar"
+- doubleTapOn: "E-mail"
+- inputText: ${email}
+- tapOn: "Senha"
+- inputText: ${password}
+- tapOn: "Entrar"
