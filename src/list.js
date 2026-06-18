@@ -132,6 +132,12 @@ export default function ListEnvelopes({
             item.saldo != null ? Number(item.saldo).toFixed(2) : '—';
           const orcamentoFormatado =
             item.orcamento != null ? Number(item.orcamento).toFixed(2) : '—';
+          const valorDespesa = item.valor_despesa ?? item.valorDespesa ?? null;
+          const reciboUri = item.recibo_base64
+            ? (item.recibo_base64.startsWith('data:') || item.recibo_base64.startsWith('file:')
+              ? item.recibo_base64
+              : `data:image/jpeg;base64,${item.recibo_base64}`)
+            : null;
 
           return (
             <View
@@ -168,13 +174,13 @@ export default function ListEnvelopes({
                     R$ {orcamentoFormatado}
                   </Text>
                 </View>
-                {item.valorDespesa != null && (
+                {valorDespesa != null && (
                   <>
                     <View style={styles.valorDivisor} />
                     <View style={styles.valorBloco}>
                       <Text style={styles.valorLabel}>Última despesa</Text>
                       <Text style={styles.valorDespesa}>
-                        − R$ {Number(item.valorDespesa).toFixed(2)}
+                        − R$ {Number(valorDespesa).toFixed(2)}
                       </Text>
                     </View>
                   </>
@@ -187,9 +193,9 @@ export default function ListEnvelopes({
               {/* Ações */}
               <View style={styles.actionsRow}>
                 <View style={styles.reciboWrapper}>
-                  {item.reciboUri && (
+                  {reciboUri && (
                     <Image
-                      source={{ uri: item.reciboUri }}
+                      source={{ uri: reciboUri }}
                       style={styles.miniatura}
                     />
                   )}
