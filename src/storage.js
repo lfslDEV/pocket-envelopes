@@ -12,6 +12,13 @@ import {
   upsertEnvelopeDoFirebase,
   adicionarNaFila,
   envelopeParaPayload,
+  inserirContaLocal,
+  buscarContasLocais,
+  atualizarContaLocal,
+  deletarConta,
+  buscarContaPorId,
+  upsertContaDoFirebase,
+  contaParaPayload,
 } from './database';
 import { sincronizar } from './sync';
 
@@ -204,6 +211,79 @@ export const transferirSaldo = async (origemId, destinoId, valor, saldoOrigem, s
     sincronizar().catch(() => {});
   } catch (error) {
     Alert.alert('Erro', 'Erro ao transferir saldo. Tente novamente.');
+    throw error;
+  }
+};
+
+// ─── Contas ───────────────────────────────────────────────────────────────────
+
+export const criarConta = async ({ nome, tipo, saldo, vencimento }) => {
+  const now = new Date().toISOString();
+  const id = gerarId();
+  const conta = {
+    id,
+    nome,
+    tipo: tipo ?? 'Corrente',
+    saldo: saldo ?? 0,
+    vencimento: vencimento ?? null,
+    synced: 0,
+    created_at: now,
+    updated_at: now,
+  };
+  await inserirContaLocal(conta);
+  await adicionarNaFila('CREATE', contaParaPayload(conta));
+  sincronizar().catch(() => {});
+  return id;
+};
+
+export const ouvirContas = (callback) => {
+  buscarContasLocais().then(callback).catch(() => callback([]));
+
+  const unsubscribe = onValue(
+    ref(db, 'contas'),
+    async (snapshot) => {
+      try {
+        const data = snapshot.val();
+        if (data) {
+          for (const key of Object.keys(data)) {
+            await upsertContaDoFirebase({ id: key, ...data[key] });
+          }
+        }
+        const local = await buscarContasLocais();
+        callback(local);
+      } catch {
+        buscarContasLocais().then(callback).catch(() => callback([]));
+      }
+    },
+    () => {
+      buscarContasLocais().then(callback).catch(() => callback([]));
+    }
+  );
+
+  return unsubscribe;
+};
+
+export const atualizarConta = async (id, campos) => {
+  try {
+    await atualizarContaLocal(id, campos);
+    const row = await buscarContaPorId(id);
+    if (row) {
+      await adicionarNaFila('UPDATE', contaParaPayload(row));
+      sincronizar().catch(() => {});
+    }
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao atualizar conta. Tente novamente.');
+    throw error;
+  }
+};
+
+export const removerConta = async (id) => {
+  try {
+    await deletarConta(id);
+    await adicionarNaFila('DELETE', { tabela: 'contas', id });
+    sincronizar().catch(() => {});
+  } catch (error) {
+    Alert.alert('Erro', 'Erro ao remover conta. Tente novamente.');
     throw error;
   }
 };

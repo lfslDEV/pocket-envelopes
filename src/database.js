@@ -20,6 +20,16 @@ export async function initDB() {
       created_at TEXT,
       updated_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS contas (
+      id TEXT PRIMARY KEY,
+      nome TEXT NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'Corrente',
+      saldo REAL DEFAULT 0,
+      vencimento TEXT,
+      synced INTEGER DEFAULT 0,
+      created_at TEXT,
+      updated_at TEXT
+    );
     CREATE TABLE IF NOT EXISTS sync_queue (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       operation TEXT NOT NULL,
@@ -168,6 +178,85 @@ export function envelopeParaPayload(row) {
     localizacao: row.localizacao != null
       ? (typeof row.localizacao === 'string' ? JSON.parse(row.localizacao) : row.localizacao)
       : null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+// ─── Contas ───────────────────────────────────────────────────────────────────
+
+export async function inserirContaLocal(conta) {
+  const d = getDB();
+  await d.runAsync(
+    `INSERT OR REPLACE INTO contas
+      (id, nome, tipo, saldo, vencimento, synced, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      conta.id,
+      conta.nome,
+      conta.tipo ?? 'Corrente',
+      conta.saldo ?? 0,
+      conta.vencimento ?? null,
+      conta.synced ?? 0,
+      conta.created_at ?? new Date().toISOString(),
+      conta.updated_at ?? new Date().toISOString(),
+    ]
+  );
+}
+
+export async function buscarContasLocais() {
+  const d = getDB();
+  return d.getAllAsync(`SELECT * FROM contas ORDER BY created_at DESC`);
+}
+
+export async function buscarContaPorId(id) {
+  const d = getDB();
+  return d.getFirstAsync(`SELECT * FROM contas WHERE id = ?`, [id]);
+}
+
+export async function atualizarContaLocal(id, campos) {
+  const d = getDB();
+  const now = new Date().toISOString();
+  const chaves = Object.keys(campos);
+  const sets = chaves.map(k => `${k} = ?`).join(', ');
+  const vals = chaves.map(k => campos[k] ?? null);
+  await d.runAsync(
+    `UPDATE contas SET ${sets}, updated_at = ?, synced = 0 WHERE id = ?`,
+    [...vals, now, id]
+  );
+}
+
+export async function deletarConta(id) {
+  const d = getDB();
+  await d.runAsync(`DELETE FROM contas WHERE id = ?`, [id]);
+}
+
+export async function upsertContaDoFirebase(raw) {
+  const d = getDB();
+  const local = await d.getFirstAsync(`SELECT updated_at FROM contas WHERE id = ?`, [raw.id]);
+  const remoteUpdated = raw.updated_at ?? '1970-01-01T00:00:00.000Z';
+  if (local && new Date(local.updated_at) > new Date(remoteUpdated)) return;
+  await inserirContaLocal({ ...raw, synced: 1, updated_at: remoteUpdated });
+}
+
+export async function removerContasAusentesDoFirebase(idsPresentes) {
+  const d = getDB();
+  const locais = await d.getAllAsync(`SELECT id FROM contas`);
+  for (const row of locais) {
+    if (!idsPresentes.has(row.id)) {
+      await d.runAsync(`DELETE FROM contas WHERE id = ?`, [row.id]);
+    }
+  }
+}
+
+export function contaParaPayload(row) {
+  return {
+    tabela: 'contas',
+    id: row.id,
+    nome: row.nome,
+    tipo: row.tipo,
+    saldo: row.saldo,
+    vencimento: row.vencimento ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
