@@ -8,14 +8,15 @@ import {
   upsertContaDoFirebase,
   removerContasAusentesDoFirebase,
 } from './database';
+import { getCurrentUser } from './userKey';
 
-async function enviarFilaParaFirebase() {
+async function enviarFilaParaFirebase(userKey) {
   const fila = await buscarFila();
   for (const item of fila) {
     const payload = JSON.parse(item.payload);
     // tabela ausente no payload = envelope (compatibilidade com registros antigos)
     const tabela = payload.tabela ?? 'envelopes';
-    const itemRef = ref(rtdb, `${tabela}/${payload.id}`);
+    const itemRef = ref(rtdb, `users/${userKey}/${tabela}/${payload.id}`);
     try {
       if (item.operation === 'CREATE' || item.operation === 'UPDATE') {
         await set(itemRef, payload);
@@ -29,9 +30,9 @@ async function enviarFilaParaFirebase() {
   }
 }
 
-async function buscarEnvelopesDoFirebase() {
+async function buscarEnvelopesDoFirebase(userKey) {
   try {
-    const snapshot = await get(child(ref(rtdb), 'envelopes'));
+    const snapshot = await get(child(ref(rtdb), `users/${userKey}/envelopes`));
     const idsProtegidos = new Set();
 
     const filaPendente = await buscarFila();
@@ -56,9 +57,9 @@ async function buscarEnvelopesDoFirebase() {
   }
 }
 
-async function buscarContasDoFirebase() {
+async function buscarContasDoFirebase(userKey) {
   try {
-    const snapshot = await get(child(ref(rtdb), 'contas'));
+    const snapshot = await get(child(ref(rtdb), `users/${userKey}/contas`));
     const idsProtegidos = new Set();
 
     const filaPendente = await buscarFila();
@@ -84,7 +85,9 @@ async function buscarContasDoFirebase() {
 }
 
 export async function sincronizar() {
-  await enviarFilaParaFirebase();
-  await buscarEnvelopesDoFirebase();
-  await buscarContasDoFirebase();
+  const userKey = getCurrentUser();
+  if (!userKey) return;
+  await enviarFilaParaFirebase(userKey);
+  await buscarEnvelopesDoFirebase(userKey);
+  await buscarContasDoFirebase(userKey);
 }

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { db } from '../firebaseConfig';
 import { ref, onValue } from 'firebase/database';
+import { getCurrentUser } from './userKey';
 import { Alert } from 'react-native';
 import {
   gerarId,
@@ -131,8 +132,9 @@ export const criarEnvelope = async ({ nome, categoria, orcamento }) => {
 export const ouvirEnvelopes = (callback) => {
   buscarEnvelopesLocais().then(callback).catch(() => callback([]));
 
+  const userKey = getCurrentUser();
   const unsubscribe = onValue(
-    ref(db, 'envelopes'),
+    ref(db, `users/${userKey}/envelopes`),
     async (snapshot) => {
       try {
         const data = snapshot.val();
@@ -239,8 +241,9 @@ export const criarConta = async ({ nome, tipo, saldo, vencimento }) => {
 export const ouvirContas = (callback) => {
   buscarContasLocais().then(callback).catch(() => callback([]));
 
+  const userKey = getCurrentUser();
   const unsubscribe = onValue(
-    ref(db, 'contas'),
+    ref(db, `users/${userKey}/contas`),
     async (snapshot) => {
       try {
         const data = snapshot.val();
