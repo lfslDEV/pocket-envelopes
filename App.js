@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
+import NetInfo from '@react-native-community/netinfo';
 import MapaComponent from './src/map';
 import AddEnvelope from './src/add';
 import ListEnvelopes from './src/list';
@@ -13,6 +14,8 @@ import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
+import { initDB } from './src/database';
+import { sincronizar } from './src/sync';
 import { DURACAO_TOAST } from './src/config';
 import { colors, typography, spacing, radius, shadow } from './src/theme';
 
@@ -384,11 +387,18 @@ export default function App() {
 
   useEffect(() => {
     async function iniciarApp() {
+      await initDB();
       const emailSalvo = await checarBiometriaVinculada();
       setEmailVinculado(emailSalvo);
       setIsCarregando(false);
+      sincronizar().catch(() => {});
     }
     iniciarApp();
+
+    const unsubNetInfo = NetInfo.addEventListener(estado => {
+      if (estado.isConnected) sincronizar().catch(() => {});
+    });
+    return () => unsubNetInfo();
   }, []);
 
   const handleLoginSuccess = async (email) => {
