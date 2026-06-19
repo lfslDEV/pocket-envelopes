@@ -13,17 +13,36 @@ import CameraComponent from './src/camera';
 import Login from './src/login';
 import Register from './src/register';
 import Profile from './src/profile';
+import Dashboard from './src/dashboard';
+import Contas from './src/contas';
+import Transacoes from './src/transacoes';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
 import { initDB } from './src/database';
 import { sincronizar } from './src/sync';
 import { DURACAO_TOAST } from './src/config';
 import { colors, typography, spacing, radius, shadow } from './src/theme';
 
+const TABS = [
+  { id: 'dashboard',   icone: '🏠', label: 'Início' },
+  { id: 'envelopes',  icone: '📋', label: 'Envelopes' },
+  { id: 'contas',     icone: '🏦', label: 'Contas' },
+  { id: 'transacoes', icone: '📊', label: 'Histórico' },
+  { id: 'perfil',     icone: '👤', label: 'Perfil' },
+];
+
+const TITULOS = {
+  dashboard:   'Visão Geral',
+  envelopes:   'Envelopes',
+  contas:      'Contas',
+  transacoes:  'Transações',
+  perfil:      '',
+};
+
 export function Painel({ userEmail, onLogout }) {
+  const [telaAtual, setTelaAtual] = useState('envelopes');
   const [envelopes, setEnvelopes] = useState([]);
-  const [showProfile, setShowProfile] = useState(false);
   const [userData, setUserData] = useState(null);
-  
+
   const [cameraVisivel, setCameraVisivel] = useState(false);
   const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
 
@@ -41,16 +60,8 @@ export function Painel({ userEmail, onLogout }) {
   const [inputValorTransferencia, setInputValorTransferencia] = useState('');
 
   useEffect(() => {
-    const carregarUsuario = async () => {
-      const user = await buscarUsuarioPorEmail(userEmail);
-      setUserData(user);
-    };
-    carregarUsuario();
-
-    const unsubscribe = ouvirEnvelopes((envelopesAtualizados) => {
-      setEnvelopes(envelopesAtualizados);
-    });
-
+    buscarUsuarioPorEmail(userEmail).then(setUserData);
+    const unsubscribe = ouvirEnvelopes(setEnvelopes);
     return () => unsubscribe();
   }, [userEmail]);
 
@@ -59,74 +70,50 @@ export function Painel({ userEmail, onLogout }) {
       Toast.show({ type: 'error', text1: 'Nome Vazio', visibilityTime: DURACAO_TOAST });
       return;
     }
-
     try {
-      const pushKey = await criarEnvelope({ nome, categoria, orcamento });
+      const id = await criarEnvelope({ nome, categoria, orcamento });
       Toast.show({ type: 'success', text1: 'Envelope criado!', visibilityTime: DURACAO_TOAST });
-
       try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
+        const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          let location = await Location.getLastKnownPositionAsync({});
-          
-          if (!location) {
-            location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          }
-
-          const localizacaoAtual = {
-            latitude: location.coords.latitude,
-            longitude: location.coords.longitude,
-          };
-
-          await atualizarEnvelope(pushKey, { localizacao: localizacaoAtual });
+          let loc = await Location.getLastKnownPositionAsync({});
+          if (!loc) loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          await atualizarEnvelope(id, {
+            localizacao: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
+          });
         }
-      } catch (error) {
-        console.log("Erro ao buscar GPS em segundo plano", error);
+      } catch (e) {
+        console.log('Erro ao buscar GPS', e);
       }
-    } catch (error) {
-      console.log("Erro ao criar envelope", error);
+    } catch (e) {
+      console.log('Erro ao criar envelope', e);
     }
   };
 
   const deleteEnvelope = (id) => {
-    const envelope = envelopes.find(e => e.id === id);
-    const nome = envelope ? envelope.nome : 'este envelope';
-
-    Alert.alert(
-      'Excluir envelope',
-      `Excluir o envelope "${nome}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await removerEnvelope(id);
-            } catch (error) {
-              console.log('Erro ao remover envelope', error);
-            }
-          },
+    const nome = envelopes.find(e => e.id === id)?.nome ?? 'este envelope';
+    Alert.alert('Excluir envelope', `Excluir "${nome}"?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try { await removerEnvelope(id); } catch (e) { console.log(e); }
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const abrirModalValor = (idEnvelope) => {
-    const envelope = envelopes.find(e => e.id === idEnvelope);
-    setEnvelopeParaDespesa(envelope);
+    setEnvelopeParaDespesa(envelopes.find(e => e.id === idEnvelope));
     setInputValorDespesa('');
     setModalValorVisivel(true);
   };
 
   const confirmarValor = () => {
     const valor = Number(inputValorDespesa);
-    if (isNaN(valor)) {
-      Alert.alert('Erro', 'Valor inválido. Digite um número.');
-      return;
-    }
-    if (valor <= 0) {
-      Alert.alert('Erro', 'O valor da despesa deve ser maior que zero.');
+    if (isNaN(valor) || valor <= 0) {
+      Alert.alert('Erro', 'Informe um valor maior que zero.');
       return;
     }
     setValorDespesaTemp(valor);
@@ -180,11 +167,8 @@ export function Painel({ userEmail, onLogout }) {
     }
     try {
       await transferirSaldo(
-        envelopeOrigem.id,
-        envelopeDestino.id,
-        valor,
-        envelopeOrigem.saldo ?? 0,
-        envelopeDestino.saldo ?? 0,
+        envelopeOrigem.id, envelopeDestino.id, valor,
+        envelopeOrigem.saldo ?? 0, envelopeDestino.saldo ?? 0,
       );
       Toast.show({ type: 'success', text1: 'Transferência realizada!', visibilityTime: DURACAO_TOAST });
       setModalTransferenciaVisivel(false);
@@ -194,76 +178,92 @@ export function Painel({ userEmail, onLogout }) {
   };
 
   const prepararSeccoes = () => {
-    const grupos = envelopes.reduce((acc, current) => {
-      const cat = current.categoria || 'Geral'; 
-      if (!acc[cat]) {
-        acc[cat] = [];
-      }
-      acc[cat].push(current);
+    const grupos = envelopes.reduce((acc, e) => {
+      const cat = e.categoria || 'Geral';
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(e);
       return acc;
     }, {});
-
-    return Object.keys(grupos).map(cat => ({
-      title: cat,
-      data: grupos[cat]
-    }));
+    return Object.keys(grupos).map(cat => ({ title: cat, data: grupos[cat] }));
   };
 
-  const categoriasExistentes = [...new Set(envelopes.map(env => env.categoria || 'Geral'))];
+  const categoriasExistentes = [...new Set(envelopes.map(e => e.categoria || 'Geral'))];
+
+  const renderConteudo = () => {
+    switch (telaAtual) {
+      case 'dashboard':
+        return <Dashboard envelopes={envelopes} userData={userData} />;
+
+      case 'envelopes':
+        return (
+          <View style={styles.innerPainel}>
+            <AddEnvelope addEnvelope={addEnvelope} categorias={categoriasExistentes} />
+            <ListEnvelopes
+              sections={prepararSeccoes()}
+              deleteEnvelope={deleteEnvelope}
+              openCamera={abrirModalValor}
+              openMapa={abrirMapa}
+              openTransferencia={abrirTransferencia}
+            />
+          </View>
+        );
+
+      case 'contas':
+        return <Contas />;
+
+      case 'transacoes':
+        return <Transacoes />;
+
+      case 'perfil':
+        return (
+          <Profile
+            user={userData}
+            onBack={() => setTelaAtual('envelopes')}
+            onLogout={onLogout}
+            onUserUpdate={(u) => setUserData(u)}
+          />
+        );
+    }
+  };
+
+  const mostrarHeader = telaAtual !== 'perfil';
 
   return (
     <SafeAreaView style={styles.painelContainer}>
-      {showProfile ? (
-        <Profile 
-          user={userData}
-          onBack={() => setShowProfile(false)}
-          onLogout={onLogout}
-          onUserUpdate={(usuarioAtualizado) => setUserData(usuarioAtualizado)}
-        />
-      ) : (
-        <View style={styles.innerPainel}>
-          <View style={styles.header}>
-            <Text style={styles.sectionTitle}>Gestão de Envelopes</Text>
-            <TouchableOpacity
-              style={styles.profileAvatarButton}
-              onPress={() => setShowProfile(true)}
-              activeOpacity={0.8}
-            >
-              {userData?.fotoUri ? (
-                <Image
-                  source={{ uri: userData.fotoUri }}
-                  style={styles.profileAvatarImage}
-                />
-              ) : (
-                <View style={styles.profileAvatarPlaceholder}>
-                  <Text style={styles.profileAvatarText}>
-                    {userData?.nome ? userData.nome.charAt(0).toUpperCase() : '?'}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </View>
-          <AddEnvelope addEnvelope={addEnvelope} categorias={categoriasExistentes} />
-          
-          <ListEnvelopes 
-            sections={prepararSeccoes()} 
-            deleteEnvelope={deleteEnvelope} 
-            openCamera={abrirModalValor}
-            openMapa={abrirMapa}
-            openTransferencia={abrirTransferencia}
-          />
+      {mostrarHeader && (
+        <View style={styles.header}>
+          <Text style={styles.sectionTitle}>{TITULOS[telaAtual]}</Text>
+          <TouchableOpacity
+            style={styles.profileAvatarButton}
+            onPress={() => setTelaAtual('perfil')}
+            activeOpacity={0.8}
+          >
+            {userData?.fotoUri ? (
+              <Image source={{ uri: userData.fotoUri }} style={styles.profileAvatarImage} />
+            ) : (
+              <View style={styles.profileAvatarPlaceholder}>
+                <Text style={styles.profileAvatarText}>
+                  {userData?.nome ? userData.nome.charAt(0).toUpperCase() : '?'}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
-      <CameraComponent 
-        visivel={cameraVisivel} 
-        onClose={() => setCameraVisivel(false)} 
-        onSavePhoto={salvarDespesaNoEnvelope} 
+      <View style={styles.conteudo}>
+        {renderConteudo()}
+      </View>
+
+      <CameraComponent
+        visivel={cameraVisivel}
+        onClose={() => setCameraVisivel(false)}
+        onSavePhoto={salvarDespesaNoEnvelope}
       />
-      <MapaComponent 
-        visivel={mapaVisivel} 
-        onClose={() => setMapaVisivel(false)} 
-        localizacao={localSelecionado} 
+      <MapaComponent
+        visivel={mapaVisivel}
+        onClose={() => setMapaVisivel(false)}
+        localizacao={localSelecionado}
       />
 
       <Modal
@@ -313,43 +313,30 @@ export function Painel({ userEmail, onLogout }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitulo}>Transferir Saldo</Text>
-
             <Text style={styles.modalLabel}>Origem</Text>
             <ScrollView style={styles.pickerLista} nestedScrollEnabled>
               {envelopes.map(env => (
                 <TouchableOpacity
                   key={env.id}
-                  style={[
-                    styles.pickerItem,
-                    envelopeOrigem?.id === env.id && styles.pickerItemSelecionado,
-                  ]}
+                  style={[styles.pickerItem, envelopeOrigem?.id === env.id && styles.pickerItemSelecionado]}
                   onPress={() => setEnvelopeOrigem(env)}
                 >
-                  <Text style={styles.pickerItemTexto}>
-                    {env.nome} — R$ {env.saldo ?? 0}
-                  </Text>
+                  <Text style={styles.pickerItemTexto}>{env.nome} — R$ {env.saldo ?? 0}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <Text style={styles.modalLabel}>Destino</Text>
             <ScrollView style={styles.pickerLista} nestedScrollEnabled>
               {envelopes.map(env => (
                 <TouchableOpacity
                   key={env.id}
-                  style={[
-                    styles.pickerItem,
-                    envelopeDestino?.id === env.id && styles.pickerItemSelecionado,
-                  ]}
+                  style={[styles.pickerItem, envelopeDestino?.id === env.id && styles.pickerItemSelecionado]}
                   onPress={() => setEnvelopeDestino(env)}
                 >
-                  <Text style={styles.pickerItemTexto}>
-                    {env.nome} — R$ {env.saldo ?? 0}
-                  </Text>
+                  <Text style={styles.pickerItemTexto}>{env.nome} — R$ {env.saldo ?? 0}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
-
             <TextInput
               style={styles.modalInput}
               placeholder="Valor a transferir (ex: 50.00)"
@@ -357,7 +344,6 @@ export function Painel({ userEmail, onLogout }) {
               onChangeText={setInputValorTransferencia}
               keyboardType="numeric"
             />
-
             <View style={styles.modalBotoes}>
               <TouchableOpacity
                 style={[styles.modalBotao, styles.modalBotaoCancelar]}
@@ -375,6 +361,22 @@ export function Painel({ userEmail, onLogout }) {
           </View>
         </View>
       </Modal>
+
+      <View style={styles.bottomNav}>
+        {TABS.map(tab => (
+          <TouchableOpacity
+            key={tab.id}
+            style={styles.tabItem}
+            onPress={() => setTelaAtual(tab.id)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.tabIcone}>{tab.icone}</Text>
+            <Text style={[styles.tabLabel, telaAtual === tab.id && styles.tabLabelAtiva]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
     </SafeAreaView>
   );
 }
@@ -509,23 +511,56 @@ const styles = StyleSheet.create({
   painelContainer: {
     flex: 1,
     width: '100%',
-    paddingTop: 40,
+  },
+  conteudo: {
+    flex: 1,
   },
   innerPainel: {
     flex: 1,
     paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
   },
   sectionTitle: {
-    fontSize: typography.xxl,
+    fontSize: typography.xl,
     fontWeight: typography.bold,
     color: colors.brand,
+  },
+  // ── Bottom nav ──
+  bottomNav: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    paddingBottom: spacing.xs,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    gap: 2,
+  },
+  tabIcone: {
+    fontSize: 20,
+  },
+  tabLabel: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    fontWeight: typography.medium,
+  },
+  tabLabelAtiva: {
+    color: colors.brand,
+    fontWeight: typography.bold,
   },
   profileAvatarButton: {
     width: 42,
