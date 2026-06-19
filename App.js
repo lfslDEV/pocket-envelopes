@@ -135,6 +135,23 @@ export function Painel({ userEmail, onLogout }) {
     }
   };
 
+  const fecharCameraComAviso = () => {
+    if (valorDespesaTemp !== null) {
+      Alert.alert(
+        'Despesa não salva',
+        'O valor digitado foi descartado. Nenhum gasto foi registrado.',
+        [{ text: 'OK', onPress: () => {
+          setCameraVisivel(false);
+          setValorDespesaTemp(null);
+          setEnvelopeParaDespesa(null);
+          setEnvelopeParaFoto(null);
+        }}]
+      );
+    } else {
+      setCameraVisivel(false);
+    }
+  };
+
   const abrirMapa = (localizacao) => {
     setLocalSelecionado(localizacao);
     setMapaVisivel(true);
@@ -257,7 +274,7 @@ export function Painel({ userEmail, onLogout }) {
 
       <CameraComponent
         visivel={cameraVisivel}
-        onClose={() => setCameraVisivel(false)}
+        onClose={fecharCameraComAviso}
         onSavePhoto={salvarDespesaNoEnvelope}
       />
       <MapaComponent
