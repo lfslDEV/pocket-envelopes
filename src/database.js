@@ -1,10 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 
 let db = null;
+let dbUserKey = null;
 
-export async function initDB() {
-  if (db) return db;
-  db = await SQLite.openDatabaseAsync('pocket_envelopes.db');
+export async function initDB(userKey) {
+  if (db && dbUserKey === userKey) return db;
+  db = await SQLite.openDatabaseAsync(`pocket_envelopes_${userKey}.db`);
+  dbUserKey = userKey;
   await db.execAsync('PRAGMA journal_mode = WAL;');
   await db.execAsync(`
     CREATE TABLE IF NOT EXISTS envelopes (

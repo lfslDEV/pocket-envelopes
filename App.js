@@ -19,6 +19,7 @@ import Transacoes from './src/transacoes';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
 import { initDB } from './src/database';
 import { sincronizar } from './src/sync';
+import { setCurrentUser, getCurrentUser } from './src/userKey';
 import { DURACAO_TOAST } from './src/config';
 import { colors, typography, spacing, radius, shadow } from './src/theme';
 
@@ -406,24 +407,30 @@ export default function App() {
 
   useEffect(() => {
     async function iniciarApp() {
-      await initDB();
       const emailSalvo = await checarBiometriaVinculada();
+      if (emailSalvo) {
+        setCurrentUser(emailSalvo);
+        await initDB(getCurrentUser());
+        sincronizar().catch(() => {});
+      }
       setEmailVinculado(emailSalvo);
       setIsCarregando(false);
-      sincronizar().catch(() => {});
     }
     iniciarApp();
 
     const unsubNetInfo = NetInfo.addEventListener(estado => {
-      if (estado.isConnected) sincronizar().catch(() => {});
+      if (estado.isConnected && getCurrentUser()) sincronizar().catch(() => {});
     });
     return () => unsubNetInfo();
   }, []);
 
   const handleLoginSuccess = async (email) => {
+    setCurrentUser(email);
+    await initDB(getCurrentUser());
     await vincularBiometria(email);
     setEmailVinculado(email);
     setCofreAberto(true);
+    sincronizar().catch(() => {});
   };
 
   const handleRegisterSuccess = () => {
@@ -438,6 +445,7 @@ export default function App() {
 
   const handleLogout = async () => {
     await desvincularBiometria();
+    setCurrentUser(null);
     setEmailVinculado(null);
     setCofreAberto(false);
     Toast.show({
