@@ -28,18 +28,26 @@ async function enviarFilaParaFirebase() {
 async function buscarFirebaseParaLocal() {
   try {
     const snapshot = await get(child(ref(rtdb), 'envelopes'));
-    const idsNoFirebase = new Set();
+    const idsProtegidos = new Set();
+
+    // IDs com operação pendente na fila nunca são apagados pela reconciliação:
+    // o envelope pode ainda não ter subido ao Firebase (CREATE offline, falha parcial),
+    // então sua ausência no snapshot não significa que foi deletado remotamente.
+    const filaPendente = await buscarFila();
+    for (const item of filaPendente) {
+      idsProtegidos.add(JSON.parse(item.payload).id);
+    }
 
     if (snapshot.exists()) {
       const data = snapshot.val();
       for (const key of Object.keys(data)) {
         await upsertEnvelopeDoFirebase({ id: key, ...data[key] });
-        idsNoFirebase.add(key);
+        idsProtegidos.add(key);
       }
     }
 
-    // Envelopes que sumiram do Firebase foram deletados em outro dispositivo
-    await removerEnvelopesAusentesDoFirebase(idsNoFirebase);
+    // Só remove o que não está no Firebase E não tem operação pendente
+    await removerEnvelopesAusentesDoFirebase(idsProtegidos);
   } catch (e) {
     console.log('Erro ao buscar do Firebase:', e);
   }
