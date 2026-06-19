@@ -122,9 +122,9 @@ export function Painel({ userEmail, onLogout }) {
     setCameraVisivel(true);
   };
 
-  const salvarDespesaNoEnvelope = async (photoUri) => {
+  const salvarDespesaNoEnvelope = async (reciboBase64) => {
     try {
-      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, photoUri);
+      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, reciboBase64);
       setCameraVisivel(false);
       setEnvelopeParaFoto(null);
       setValorDespesaTemp(null);
