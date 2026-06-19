@@ -5,7 +5,7 @@ import { Alert, Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'r
 export default function CameraComponent({ visivel, onClose, onSavePhoto }) {
   const [facing, setFacing] = useState('back');
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
-  const [photoUri, setPhotoUri] = useState(null);
+  const [fotoBase64, setFotoBase64] = useState(null);
   const cameraRef = useRef(null);
 
   async function pedirPermissaoCamera() {
@@ -26,14 +26,12 @@ export default function CameraComponent({ visivel, onClose, onSavePhoto }) {
   async function takePicture() {
     try {
       if (!cameraRef.current) return;
-      
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.5,
+        quality: 0.3,
         base64: true,
       });
-
-      if (photo?.uri) {
-        setPhotoUri(photo.uri);
+      if (photo?.base64) {
+        setFotoBase64(photo.base64);
       }
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível tirar a foto.');
@@ -58,21 +56,28 @@ export default function CameraComponent({ visivel, onClose, onSavePhoto }) {
     );
   }
 
-  if (photoUri) {
+  if (fotoBase64) {
     return (
       <Modal visible={visivel} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Recibo Capturado</Text>
-            <Image source={{ uri: photoUri }} style={styles.previewImage} resizeMode="contain" />
+            <Image
+              source={{ uri: `data:image/jpeg;base64,${fotoBase64}` }}
+              style={styles.previewImage}
+              resizeMode="contain"
+            />
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalButton} onPress={() => setPhotoUri(null)}>
+              <TouchableOpacity style={styles.modalButton} onPress={() => setFotoBase64(null)}>
                 <Text style={styles.modalButtonText}>Tirar Outra</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, {backgroundColor: '#27ae60'}]} onPress={() => {
-                onSavePhoto(photoUri);
-                setPhotoUri(null); // Limpa para a próxima vez
-              }}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: '#27ae60' }]}
+                onPress={() => {
+                  onSavePhoto(fotoBase64);
+                  setFotoBase64(null);
+                }}
+              >
                 <Text style={styles.modalButtonText}>Salvar Recibo</Text>
               </TouchableOpacity>
             </View>

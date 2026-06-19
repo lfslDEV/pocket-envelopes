@@ -122,9 +122,9 @@ export function Painel({ userEmail, onLogout }) {
     setCameraVisivel(true);
   };
 
-  const salvarDespesaNoEnvelope = async (photoUri) => {
+  const salvarDespesaNoEnvelope = async (reciboBase64) => {
     try {
-      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, photoUri);
+      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, reciboBase64);
       setCameraVisivel(false);
       setEnvelopeParaFoto(null);
       setValorDespesaTemp(null);
@@ -132,6 +132,23 @@ export function Painel({ userEmail, onLogout }) {
       Toast.show({ type: 'success', text1: 'Recibo salvo!', visibilityTime: DURACAO_TOAST });
     } catch {
       // erro já tratado em storage.js
+    }
+  };
+
+  const fecharCameraComAviso = () => {
+    if (valorDespesaTemp !== null) {
+      Alert.alert(
+        'Despesa não salva',
+        'O valor digitado foi descartado. Nenhum gasto foi registrado.',
+        [{ text: 'OK', onPress: () => {
+          setCameraVisivel(false);
+          setValorDespesaTemp(null);
+          setEnvelopeParaDespesa(null);
+          setEnvelopeParaFoto(null);
+        }}]
+      );
+    } else {
+      setCameraVisivel(false);
     }
   };
 
@@ -257,7 +274,7 @@ export function Painel({ userEmail, onLogout }) {
 
       <CameraComponent
         visivel={cameraVisivel}
-        onClose={() => setCameraVisivel(false)}
+        onClose={fecharCameraComAviso}
         onSavePhoto={salvarDespesaNoEnvelope}
       />
       <MapaComponent

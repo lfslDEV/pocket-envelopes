@@ -72,6 +72,20 @@ function DeleteModal({ visivel, nomePasta, onConfirm, onCancel }) {
   );
 }
 
+// ─── Modal de recibo em tela cheia ────────────────────────────────────────────
+function ModalRecibo({ uri, onFechar }) {
+  return (
+    <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onFechar}>
+      <View style={styles.reciboOverlay}>
+        <TouchableOpacity style={styles.reciboFechar} onPress={onFechar} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <Text style={styles.reciboFecharTexto}>✕</Text>
+        </TouchableOpacity>
+        <Image source={{ uri }} style={styles.reciboFullscreen} resizeMode="contain" />
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Componente principal ──────────────────────────────────────────────────────
 export default function ListEnvelopes({
   sections,
@@ -82,6 +96,7 @@ export default function ListEnvelopes({
 }) {
   const [colapsados, setColapsados] = useState({});
   const [deleteAlvo, setDeleteAlvo] = useState(null); // { id, nome }
+  const [reciboModal, setReciboModal] = useState(null);
 
   const togglePasta = (title) => {
     setColapsados((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -194,10 +209,12 @@ export default function ListEnvelopes({
               <View style={styles.actionsRow}>
                 <View style={styles.reciboWrapper}>
                   {reciboUri && (
-                    <Image
-                      source={{ uri: reciboUri }}
-                      style={styles.miniatura}
-                    />
+                    <TouchableOpacity onPress={() => setReciboModal(reciboUri)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: reciboUri }}
+                        style={styles.miniatura}
+                      />
+                    </TouchableOpacity>
                   )}
                   <TouchableOpacity
                     style={styles.btnAction}
@@ -238,6 +255,8 @@ export default function ListEnvelopes({
         onConfirm={confirmarDelete}
         onCancel={() => setDeleteAlvo(null)}
       />
+
+      <ModalRecibo uri={reciboModal} onFechar={() => setReciboModal(null)} />
     </View>
   );
 }
@@ -414,6 +433,35 @@ const styles = StyleSheet.create({
   },
   btnTransferenciaText: {
     color: colors.brandDark,
+  },
+
+  // ── Modal de recibo fullscreen ──
+  reciboOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reciboFullscreen: {
+    width: '100%',
+    height: '80%',
+  },
+  reciboFechar: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  reciboFecharTexto: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 
   // ── Modal de delete ──
