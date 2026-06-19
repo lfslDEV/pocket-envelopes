@@ -16,7 +16,6 @@ export async function initDB() {
       valor_despesa REAL,
       recibo_base64 TEXT,
       localizacao TEXT,
-      deleted INTEGER DEFAULT 0,
       synced INTEGER DEFAULT 0,
       created_at TEXT,
       updated_at TEXT
@@ -28,6 +27,10 @@ export async function initDB() {
       created_at TEXT NOT NULL
     );
   `);
+  // Migração: remover coluna deleted se vier do schema anterior
+  try {
+    await db.execAsync('ALTER TABLE envelopes DROP COLUMN deleted;');
+  } catch {}
   return db;
 }
 
@@ -43,8 +46,8 @@ export async function inserirEnvelopeLocal(envelope) {
   const d = getDB();
   await d.runAsync(
     `INSERT OR REPLACE INTO envelopes
-      (id, nome, categoria, orcamento, saldo, valor_despesa, recibo_base64, localizacao, deleted, synced, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, nome, categoria, orcamento, saldo, valor_despesa, recibo_base64, localizacao, synced, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       envelope.id,
       envelope.nome,
@@ -54,7 +57,6 @@ export async function inserirEnvelopeLocal(envelope) {
       envelope.valor_despesa ?? null,
       envelope.recibo_base64 ?? null,
       envelope.localizacao != null ? JSON.stringify(envelope.localizacao) : null,
-      envelope.deleted ?? 0,
       envelope.synced ?? 0,
       envelope.created_at ?? new Date().toISOString(),
       envelope.updated_at ?? new Date().toISOString(),
@@ -65,7 +67,7 @@ export async function inserirEnvelopeLocal(envelope) {
 export async function buscarEnvelopesLocais() {
   const d = getDB();
   const rows = await d.getAllAsync(
-    `SELECT * FROM envelopes WHERE deleted = 0 ORDER BY created_at DESC`
+    `SELECT * FROM envelopes ORDER BY created_at DESC`
   );
   return rows.map(r => ({
     ...r,
@@ -89,13 +91,9 @@ export async function atualizarEnvelopeLocal(id, campos) {
   );
 }
 
-export async function softDeleteEnvelope(id) {
+export async function deletarEnvelope(id) {
   const d = getDB();
-  const now = new Date().toISOString();
-  await d.runAsync(
-    `UPDATE envelopes SET deleted = 1, updated_at = ?, synced = 0 WHERE id = ?`,
-    [now, id]
-  );
+  await d.runAsync(`DELETE FROM envelopes WHERE id = ?`, [id]);
 }
 
 export async function buscarEnvelopePorId(id) {
@@ -122,12 +120,22 @@ export async function upsertEnvelopeDoFirebase(raw) {
     valor_despesa: raw.valor_despesa ?? raw.valorDespesa ?? null,
     recibo_base64: raw.recibo_base64 ?? null,
     localizacao: raw.localizacao ?? null,
-    deleted: raw.deleted ?? 0,
     synced: 1,
     created_at: raw.created_at ?? raw.createdAt ?? new Date().toISOString(),
     updated_at: remoteUpdated,
   };
   await inserirEnvelopeLocal(envelope);
+}
+
+// Remove localmente envelopes que não existem mais no Firebase (deletados em outro dispositivo)
+export async function removerEnvelopesAusentesDoFirebase(idsPresentes) {
+  const d = getDB();
+  const locais = await d.getAllAsync(`SELECT id FROM envelopes`);
+  for (const row of locais) {
+    if (!idsPresentes.has(row.id)) {
+      await d.runAsync(`DELETE FROM envelopes WHERE id = ?`, [row.id]);
+    }
+  }
 }
 
 export async function adicionarNaFila(operation, payload) {
@@ -160,7 +168,6 @@ export function envelopeParaPayload(row) {
     localizacao: row.localizacao != null
       ? (typeof row.localizacao === 'string' ? JSON.parse(row.localizacao) : row.localizacao)
       : null,
-    deleted: row.deleted ?? 0,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

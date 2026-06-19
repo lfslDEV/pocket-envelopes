@@ -7,7 +7,7 @@ import {
   inserirEnvelopeLocal,
   buscarEnvelopesLocais,
   atualizarEnvelopeLocal,
-  softDeleteEnvelope,
+  deletarEnvelope,
   buscarEnvelopePorId,
   upsertEnvelopeDoFirebase,
   adicionarNaFila,
@@ -164,12 +164,9 @@ export const atualizarEnvelope = async (id, campos) => {
 
 export const removerEnvelope = async (id) => {
   try {
-    const row = await buscarEnvelopePorId(id);
-    await softDeleteEnvelope(id);
-    if (row) {
-      await adicionarNaFila('DELETE', { id });
-      sincronizar().catch(() => {});
-    }
+    await deletarEnvelope(id);
+    await adicionarNaFila('DELETE', { id });
+    sincronizar().catch(() => {});
   } catch (error) {
     Alert.alert('Erro', 'Erro ao remover envelope. Tente novamente.');
     throw error;

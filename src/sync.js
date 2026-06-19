@@ -4,6 +4,7 @@ import {
   buscarFila,
   removerDaFila,
   upsertEnvelopeDoFirebase,
+  removerEnvelopesAusentesDoFirebase,
 } from './database';
 
 async function enviarFilaParaFirebase() {
@@ -27,11 +28,18 @@ async function enviarFilaParaFirebase() {
 async function buscarFirebaseParaLocal() {
   try {
     const snapshot = await get(child(ref(rtdb), 'envelopes'));
-    if (!snapshot.exists()) return;
-    const data = snapshot.val();
-    for (const key of Object.keys(data)) {
-      await upsertEnvelopeDoFirebase({ id: key, ...data[key] });
+    const idsNoFirebase = new Set();
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      for (const key of Object.keys(data)) {
+        await upsertEnvelopeDoFirebase({ id: key, ...data[key] });
+        idsNoFirebase.add(key);
+      }
     }
+
+    // Envelopes que sumiram do Firebase foram deletados em outro dispositivo
+    await removerEnvelopesAusentesDoFirebase(idsNoFirebase);
   } catch (e) {
     console.log('Erro ao buscar do Firebase:', e);
   }
