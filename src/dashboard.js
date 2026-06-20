@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, typography, spacing, radius, shadow, healthColor } from './theme';
 
 function CartaoResumo({ label, valor, cor }) {
@@ -39,6 +39,11 @@ export default function Dashboard({ envelopes, userData }) {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <Image
+        source={require('../assets/splash-icon.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.saudacao}>
         Olá{userData?.nome ? `, ${userData.nome.split(' ')[0]}` : ''}! 👋
       </Text>
@@ -91,6 +96,12 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.xl,
     paddingBottom: spacing.xxl,
+  },
+  logo: {
+    width: 90,
+    height: 90,
+    alignSelf: 'center',
+    marginBottom: spacing.sm,
   },
   saudacao: {
     fontSize: typography.xl,
