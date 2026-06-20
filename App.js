@@ -17,7 +17,7 @@ import Dashboard from './src/dashboard';
 import Contas from './src/contas';
 import Transacoes from './src/transacoes';
 import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
-import { initDB } from './src/database';
+import { initDB, buscarEnvelopesLocais } from './src/database';
 import { sincronizar } from './src/sync';
 import { setCurrentUser, getCurrentUser } from './src/userKey';
 import { DURACAO_TOAST } from './src/config';
@@ -43,6 +43,8 @@ export function Painel({ userEmail, onLogout }) {
   const [telaAtual, setTelaAtual] = useState('envelopes');
   const [envelopes, setEnvelopes] = useState([]);
   const [userData, setUserData] = useState(null);
+
+  const recarregarEnvelopes = () => buscarEnvelopesLocais().then(setEnvelopes);
 
   const [cameraVisivel, setCameraVisivel] = useState(false);
   const [envelopeParaFoto, setEnvelopeParaFoto] = useState(null);
@@ -73,6 +75,7 @@ export function Painel({ userEmail, onLogout }) {
     }
     try {
       const id = await criarEnvelope({ nome, categoria, orcamento });
+      recarregarEnvelopes();
       Toast.show({ type: 'success', text1: 'Envelope criado!', visibilityTime: DURACAO_TOAST });
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -82,6 +85,7 @@ export function Painel({ userEmail, onLogout }) {
           await atualizarEnvelope(id, {
             localizacao: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
           });
+          recarregarEnvelopes();
         }
       } catch (e) {
         console.log('Erro ao buscar GPS', e);
@@ -99,7 +103,10 @@ export function Painel({ userEmail, onLogout }) {
         text: 'Excluir',
         style: 'destructive',
         onPress: async () => {
-          try { await removerEnvelope(id); } catch (e) { console.log(e); }
+          try {
+            await removerEnvelope(id);
+            recarregarEnvelopes();
+          } catch (e) { console.log(e); }
         },
       },
     ]);
@@ -126,6 +133,7 @@ export function Painel({ userEmail, onLogout }) {
   const salvarDespesaNoEnvelope = async (reciboBase64) => {
     try {
       await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, reciboBase64);
+      recarregarEnvelopes();
       setCameraVisivel(false);
       setEnvelopeParaFoto(null);
       setValorDespesaTemp(null);
@@ -188,6 +196,7 @@ export function Painel({ userEmail, onLogout }) {
         envelopeOrigem.id, envelopeDestino.id, valor,
         envelopeOrigem.saldo ?? 0, envelopeDestino.saldo ?? 0,
       );
+      recarregarEnvelopes();
       Toast.show({ type: 'success', text1: 'Transferência realizada!', visibilityTime: DURACAO_TOAST });
       setModalTransferenciaVisivel(false);
     } catch {

@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { criarConta, ouvirContas, atualizarConta, removerConta } from './storage';
+import { buscarContasLocais } from './database';
 import { colors, typography, spacing, radius, shadow } from './theme';
 
 const TIPOS = ['Corrente', 'Poupança', 'Cartão', 'Dinheiro'];
@@ -216,6 +217,8 @@ export default function Contas() {
   const [contas, setContas] = useState([]);
   const [contaEditando, setContaEditando] = useState(null);
 
+  const recarregarContas = () => buscarContasLocais().then(setContas);
+
   useEffect(() => {
     const unsub = ouvirContas(setContas);
     return () => unsub();
@@ -224,6 +227,7 @@ export default function Contas() {
   const handleAdicionar = async (dados) => {
     try {
       await criarConta(dados);
+      recarregarContas();
     } catch (e) {
       console.log('Erro ao criar conta', e);
     }
@@ -232,6 +236,7 @@ export default function Contas() {
   const handleSalvarEdicao = async (campos) => {
     try {
       await atualizarConta(contaEditando.id, campos);
+      recarregarContas();
       setContaEditando(null);
     } catch (e) {
       console.log('Erro ao editar conta', e);
@@ -245,7 +250,10 @@ export default function Contas() {
         text: 'Excluir',
         style: 'destructive',
         onPress: async () => {
-          try { await removerConta(conta.id); } catch (e) { console.log(e); }
+          try {
+            await removerConta(conta.id);
+            recarregarContas();
+          } catch (e) { console.log(e); }
         },
       },
     ]);
