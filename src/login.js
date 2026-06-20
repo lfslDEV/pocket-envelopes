@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, Keyboard } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, Image, Keyboard } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { fazerLogin } from './storage';
 import { DURACAO_TOAST } from './config';
@@ -26,6 +26,11 @@ export default function Login({ onLoginSuccess, onNavigateToRegister }) {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('../assets/splash-icon.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Acessar Cofre</Text>
       <Text style={styles.subtitle}>Entre com seu e-mail e senha.</Text>
 
@@ -66,6 +71,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     elevation: 3,
+  },
+  logo: {
+    width: 130,
+    height: 130,
+    alignSelf: 'center',
+    marginBottom: 12,
   },
   title: {
     fontSize: 24,
