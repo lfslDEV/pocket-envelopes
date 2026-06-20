@@ -107,7 +107,7 @@ cd pocket-envelopes
 npm install
 
 # 3. Inicie o servidor de desenvolvimento
-npx expo start
+npx expo start -c --tunnel
 ```
 
 Para testar no dispositivo físico, instale o **Expo Go** ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) · [iOS](https://apps.apple.com/app/expo-go/id982107779)) e escaneie o QR Code exibido no terminal. Se estiver em redes diferentes, use `npx expo start --tunnel`.
