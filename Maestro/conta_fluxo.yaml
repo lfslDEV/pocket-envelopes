@@ -1,0 +1,13 @@
+appId: com.anonymous.pocketenvelopes
+---
+- launchApp:
+    clearState: true
+- runFlow: "envelope_fluxo.yaml"
+- tapOn: "🏦 Corrente"
+- tapOn: "Nome da conta (ex: Nubank, Bradesco)"
+- inputText: "PicPay"
+- tapOn: "Saldo atual (ex: 1500.00)"
+- inputText: "1500.00"
+- tapOn: "Dia do vencimento — opcional (ex: 10)"
+- inputText: "10"
+- doubleTapOn: "Adicionar Conta"
