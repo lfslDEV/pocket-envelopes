@@ -5,7 +5,6 @@ import {
   Text,
   SectionList,
   TouchableOpacity,
-  Image,
   Modal,
 } from 'react-native';
 import { colors, typography, spacing, radius, shadow, healthColor } from './theme';
@@ -72,31 +71,14 @@ function DeleteModal({ visivel, nomePasta, onConfirm, onCancel }) {
   );
 }
 
-// ─── Modal de recibo em tela cheia ────────────────────────────────────────────
-function ModalRecibo({ uri, onFechar }) {
-  return (
-    <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onFechar}>
-      <View style={styles.reciboOverlay}>
-        <TouchableOpacity style={styles.reciboFechar} onPress={onFechar} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.reciboFecharTexto}>✕</Text>
-        </TouchableOpacity>
-        <Image source={{ uri }} style={styles.reciboFullscreen} resizeMode="contain" />
-      </View>
-    </Modal>
-  );
-}
-
 // ─── Componente principal ──────────────────────────────────────────────────────
 export default function ListEnvelopes({
   sections,
   deleteEnvelope,
   openCamera,
-  openMapa,
-  openTransferencia,
 }) {
   const [colapsados, setColapsados] = useState({});
   const [deleteAlvo, setDeleteAlvo] = useState(null); // { id, nome }
-  const [reciboModal, setReciboModal] = useState(null);
 
   const togglePasta = (title) => {
     setColapsados((prev) => ({ ...prev, [title]: !prev[title] }));
@@ -147,12 +129,6 @@ export default function ListEnvelopes({
             item.saldo != null ? Number(item.saldo).toFixed(2) : '—';
           const orcamentoFormatado =
             item.orcamento != null ? Number(item.orcamento).toFixed(2) : '—';
-          const valorDespesa = item.valor_despesa ?? item.valorDespesa ?? null;
-          const reciboUri = item.recibo_base64
-            ? (item.recibo_base64.startsWith('data:') || item.recibo_base64.startsWith('file:')
-              ? item.recibo_base64
-              : `data:image/jpeg;base64,${item.recibo_base64}`)
-            : null;
 
           return (
             <View
@@ -189,17 +165,6 @@ export default function ListEnvelopes({
                     R$ {orcamentoFormatado}
                   </Text>
                 </View>
-                {valorDespesa != null && (
-                  <>
-                    <View style={styles.valorDivisor} />
-                    <View style={styles.valorBloco}>
-                      <Text style={styles.valorLabel}>Última despesa</Text>
-                      <Text style={styles.valorDespesa}>
-                        − R$ {Number(valorDespesa).toFixed(2)}
-                      </Text>
-                    </View>
-                  </>
-                )}
               </View>
 
               {/* Barra de progresso */}
@@ -207,41 +172,11 @@ export default function ListEnvelopes({
 
               {/* Ações */}
               <View style={styles.actionsRow}>
-                <View style={styles.reciboWrapper}>
-                  {reciboUri && (
-                    <TouchableOpacity onPress={() => setReciboModal(reciboUri)} activeOpacity={0.8}>
-                      <Image
-                        source={{ uri: reciboUri }}
-                        style={styles.miniatura}
-                      />
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    style={styles.btnAction}
-                    onPress={() => openCamera(item.id)}
-                  >
-                    <Text style={styles.btnActionText}>📷 Recibo</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {item.localizacao && (
-                  <TouchableOpacity
-                    style={[styles.btnAction, styles.btnMapa]}
-                    onPress={() => openMapa(item.localizacao)}
-                  >
-                    <Text style={[styles.btnActionText, styles.btnMapaText]}>
-                      📍 Local
-                    </Text>
-                  </TouchableOpacity>
-                )}
-
                 <TouchableOpacity
-                  style={[styles.btnAction, styles.btnTransferencia]}
-                  onPress={() => openTransferencia(item)}
+                  style={styles.btnAction}
+                  onPress={() => openCamera(item.id)}
                 >
-                  <Text style={[styles.btnActionText, styles.btnTransferenciaText]}>
-                    ⇄ Transferir
-                  </Text>
+                  <Text style={styles.btnActionText}>📷 Recibo</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -256,12 +191,10 @@ export default function ListEnvelopes({
         onCancel={() => setDeleteAlvo(null)}
       />
 
-      <ModalRecibo uri={reciboModal} onFechar={() => setReciboModal(null)} />
     </View>
   );
 }
 
-// ─── Estilos ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
@@ -270,7 +203,6 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
   },
 
-  // ── Cabeçalho de seção ──
   headerPasta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -369,12 +301,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.semibold,
     color: colors.textPrimary,
   },
-  valorDespesa: {
-    fontSize: typography.base,
-    fontWeight: typography.semibold,
-    color: colors.danger,
-  },
-
   // ── Progresso ──
   progressTrack: {
     height: 4,
@@ -395,18 +321,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  reciboWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  miniatura: {
-    width: 32,
-    height: 32,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
   btnAction: {
     backgroundColor: colors.surfaceAlt,
     paddingVertical: spacing.xs + 2,
@@ -419,49 +333,6 @@ const styles = StyleSheet.create({
     fontSize: typography.xs,
     fontWeight: typography.semibold,
     color: colors.textSecondary,
-  },
-  btnMapa: {
-    backgroundColor: colors.accentLight,
-    borderColor: '#BFDBFE',
-  },
-  btnMapaText: {
-    color: colors.accent,
-  },
-  btnTransferencia: {
-    backgroundColor: colors.brandLight,
-    borderColor: '#BBF7D0',
-  },
-  btnTransferenciaText: {
-    color: colors.brandDark,
-  },
-
-  // ── Modal de recibo fullscreen ──
-  reciboOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  reciboFullscreen: {
-    width: '100%',
-    height: '80%',
-  },
-  reciboFechar: {
-    position: 'absolute',
-    top: 48,
-    right: 20,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  reciboFecharTexto: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
   },
 
   // ── Modal de delete ──

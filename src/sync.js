@@ -7,6 +7,8 @@ import {
   removerEnvelopesAusentesDoFirebase,
   upsertContaDoFirebase,
   removerContasAusentesDoFirebase,
+  upsertTransacaoDoFirebase,
+  removerTransacoesAusentesDoFirebase,
 } from './database';
 import { getCurrentUser } from './userKey';
 
@@ -86,10 +88,40 @@ async function buscarContasDoFirebase(userKey) {
   }
 }
 
+async function buscarTransacoesDoFirebase(userKey) {
+  try {
+    const snapshot = await get(child(ref(rtdb), `users/${userKey}/transacoes`));
+    const idsProtegidos = new Set();
+
+    // Protege IDs com operação pendente na fila — evita apagar transação criada
+    // offline que ainda não subiu ao RTDB.
+    const filaPendente = await buscarFila();
+    for (const item of filaPendente) {
+      const payload = JSON.parse(item.payload);
+      if (payload.tabela === 'transacoes') {
+        idsProtegidos.add(payload.id);
+      }
+    }
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      for (const key of Object.keys(data)) {
+        await upsertTransacaoDoFirebase({ id: key, ...data[key] });
+        idsProtegidos.add(key);
+      }
+    }
+
+    await removerTransacoesAusentesDoFirebase(idsProtegidos);
+  } catch (e) {
+    console.log('Erro ao buscar transacoes do Firebase:', e);
+  }
+}
+
 export async function sincronizar() {
   const userKey = getCurrentUser();
   if (!userKey) return;
   await enviarFilaParaFirebase(userKey);
   await buscarEnvelopesDoFirebase(userKey);
   await buscarContasDoFirebase(userKey);
+  await buscarTransacoesDoFirebase(userKey);
 }

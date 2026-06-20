@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, ScrollView, Image } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Modal, TextInput, Alert, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -16,7 +16,7 @@ import Profile from './src/profile';
 import Dashboard from './src/dashboard';
 import Contas from './src/contas';
 import Transacoes from './src/transacoes';
-import { ouvirEnvelopes, criarEnvelope, atualizarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, registrarDespesa, transferirSaldo } from './src/storage';
+import { ouvirEnvelopes, criarEnvelope, removerEnvelope, vincularBiometria, checarBiometriaVinculada, desvincularBiometria, buscarUsuarioPorEmail, criarTransacao } from './src/storage';
 import { initDB, buscarEnvelopesLocais } from './src/database';
 import { sincronizar } from './src/sync';
 import { setCurrentUser, getCurrentUser } from './src/userKey';
@@ -54,13 +54,10 @@ export function Painel({ userEmail, onLogout }) {
 
   const [modalValorVisivel, setModalValorVisivel] = useState(false);
   const [inputValorDespesa, setInputValorDespesa] = useState('');
+  const [inputDescricao, setInputDescricao] = useState('');
   const [envelopeParaDespesa, setEnvelopeParaDespesa] = useState(null);
   const [valorDespesaTemp, setValorDespesaTemp] = useState(null);
-
-  const [modalTransferenciaVisivel, setModalTransferenciaVisivel] = useState(false);
-  const [envelopeOrigem, setEnvelopeOrigem] = useState(null);
-  const [envelopeDestino, setEnvelopeDestino] = useState(null);
-  const [inputValorTransferencia, setInputValorTransferencia] = useState('');
+  const [descricaoTemp, setDescricaoTemp] = useState(null);
 
   useEffect(() => {
     buscarUsuarioPorEmail(userEmail).then(setUserData);
@@ -74,22 +71,9 @@ export function Painel({ userEmail, onLogout }) {
       return;
     }
     try {
-      const id = await criarEnvelope({ nome, categoria, orcamento });
+      await criarEnvelope({ nome, categoria, orcamento });
       recarregarEnvelopes();
       Toast.show({ type: 'success', text1: 'Envelope criado!', visibilityTime: DURACAO_TOAST });
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          let loc = await Location.getLastKnownPositionAsync({});
-          if (!loc) loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          await atualizarEnvelope(id, {
-            localizacao: { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
-          });
-          recarregarEnvelopes();
-        }
-      } catch (e) {
-        console.log('Erro ao buscar GPS', e);
-      }
     } catch (e) {
       console.log('Erro ao criar envelope', e);
     }
@@ -115,16 +99,31 @@ export function Painel({ userEmail, onLogout }) {
   const abrirModalValor = (idEnvelope) => {
     setEnvelopeParaDespesa(envelopes.find(e => e.id === idEnvelope));
     setInputValorDespesa('');
+    setInputDescricao('');
     setModalValorVisivel(true);
   };
 
-  const confirmarValor = () => {
+  const validarValor = () => {
     const valor = Number(inputValorDespesa);
     if (isNaN(valor) || valor <= 0) {
       Alert.alert('Erro', 'Informe um valor maior que zero.');
-      return;
+      return false;
     }
-    setValorDespesaTemp(valor);
+    return true;
+  };
+
+  const confirmarSemRecibo = () => {
+    if (!validarValor()) return;
+    setValorDespesaTemp(Number(inputValorDespesa));
+    setDescricaoTemp(inputDescricao.trim() || null);
+    setModalValorVisivel(false);
+    salvarDespesaNoEnvelope(null);
+  };
+
+  const confirmarComRecibo = () => {
+    if (!validarValor()) return;
+    setValorDespesaTemp(Number(inputValorDespesa));
+    setDescricaoTemp(inputDescricao.trim() || null);
     setModalValorVisivel(false);
     setEnvelopeParaFoto(envelopeParaDespesa.id);
     setCameraVisivel(true);
@@ -132,13 +131,31 @@ export function Painel({ userEmail, onLogout }) {
 
   const salvarDespesaNoEnvelope = async (reciboBase64) => {
     try {
-      await registrarDespesa(envelopeParaFoto, valorDespesaTemp, envelopeParaDespesa.saldo, reciboBase64);
+      let localizacao = null;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          let loc = await Location.getLastKnownPositionAsync({});
+          if (!loc) loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          if (loc) localizacao = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        }
+      } catch (e) {
+        console.log('Erro ao buscar GPS para transação', e);
+      }
+      await criarTransacao({
+        envelope_id: envelopeParaFoto ?? envelopeParaDespesa?.id,
+        valor: valorDespesaTemp,
+        recibo_base64: reciboBase64 ?? null,
+        localizacao,
+        descricao: descricaoTemp,
+      });
       recarregarEnvelopes();
       setCameraVisivel(false);
       setEnvelopeParaFoto(null);
       setValorDespesaTemp(null);
+      setDescricaoTemp(null);
       setEnvelopeParaDespesa(null);
-      Toast.show({ type: 'success', text1: 'Recibo salvo!', visibilityTime: DURACAO_TOAST });
+      Toast.show({ type: 'success', text1: 'Despesa registrada!', visibilityTime: DURACAO_TOAST });
     } catch {
       // erro já tratado em storage.js
     }
@@ -147,14 +164,25 @@ export function Painel({ userEmail, onLogout }) {
   const fecharCameraComAviso = () => {
     if (valorDespesaTemp !== null) {
       Alert.alert(
-        'Despesa não salva',
-        'O valor digitado foi descartado. Nenhum gasto foi registrado.',
-        [{ text: 'OK', onPress: () => {
-          setCameraVisivel(false);
-          setValorDespesaTemp(null);
-          setEnvelopeParaDespesa(null);
-          setEnvelopeParaFoto(null);
-        }}]
+        'Sair sem foto',
+        'Deseja salvar a despesa sem recibo, ou cancelar e descartar o valor?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              setCameraVisivel(false);
+              setValorDespesaTemp(null);
+              setDescricaoTemp(null);
+              setEnvelopeParaDespesa(null);
+              setEnvelopeParaFoto(null);
+            },
+          },
+          {
+            text: 'Salvar sem recibo',
+            onPress: () => salvarDespesaNoEnvelope(null),
+          },
+        ]
       );
     } else {
       setCameraVisivel(false);
@@ -164,44 +192,6 @@ export function Painel({ userEmail, onLogout }) {
   const abrirMapa = (localizacao) => {
     setLocalSelecionado(localizacao);
     setMapaVisivel(true);
-  };
-
-  const abrirTransferencia = (envelope) => {
-    setEnvelopeOrigem(envelope);
-    setEnvelopeDestino(null);
-    setInputValorTransferencia('');
-    setModalTransferenciaVisivel(true);
-  };
-
-  const confirmarTransferencia = async () => {
-    const valor = Number(inputValorTransferencia);
-    if (isNaN(valor) || valor <= 0) {
-      Alert.alert('Erro', 'Informe um valor válido maior que zero.');
-      return;
-    }
-    if (!envelopeDestino) {
-      Alert.alert('Erro', 'Selecione um envelope de destino.');
-      return;
-    }
-    if (envelopeOrigem.id === envelopeDestino.id) {
-      Alert.alert('Erro', 'Origem e destino não podem ser o mesmo envelope.');
-      return;
-    }
-    if (valor > (envelopeOrigem.saldo ?? 0)) {
-      Toast.show({ type: 'error', text1: 'Saldo insuficiente', visibilityTime: DURACAO_TOAST });
-      return;
-    }
-    try {
-      await transferirSaldo(
-        envelopeOrigem.id, envelopeDestino.id, valor,
-        envelopeOrigem.saldo ?? 0, envelopeDestino.saldo ?? 0,
-      );
-      recarregarEnvelopes();
-      Toast.show({ type: 'success', text1: 'Transferência realizada!', visibilityTime: DURACAO_TOAST });
-      setModalTransferenciaVisivel(false);
-    } catch {
-      // erro já tratado em storage.js
-    }
   };
 
   const prepararSeccoes = () => {
@@ -229,8 +219,6 @@ export function Painel({ userEmail, onLogout }) {
               sections={prepararSeccoes()}
               deleteEnvelope={deleteEnvelope}
               openCamera={abrirModalValor}
-              openMapa={abrirMapa}
-              openTransferencia={abrirTransferencia}
             />
           </View>
         );
@@ -239,7 +227,7 @@ export function Painel({ userEmail, onLogout }) {
         return <Contas />;
 
       case 'transacoes':
-        return <Transacoes />;
+        return <Transacoes onAbrirMapa={abrirMapa} onGastoAlterado={recarregarEnvelopes} />;
 
       case 'perfil':
         return (
@@ -313,76 +301,31 @@ export function Painel({ userEmail, onLogout }) {
               keyboardType="numeric"
               autoFocus
             />
-            <View style={styles.modalBotoes}>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Descrição (opcional)"
+              value={inputDescricao}
+              onChangeText={setInputDescricao}
+              returnKeyType="done"
+            />
+            <View style={styles.modalBotoesColuna}>
               <TouchableOpacity
-                style={[styles.modalBotao, styles.modalBotaoCancelar]}
+                style={[styles.modalBotaoLargo, styles.modalBotaoConfirmar]}
+                onPress={confirmarSemRecibo}
+              >
+                <Text style={styles.modalBotaoTexto}>Salvar despesa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBotaoLargo, styles.modalBotaoSecundario]}
+                onPress={confirmarComRecibo}
+              >
+                <Text style={styles.modalBotaoSecundarioTexto}>📷 Anexar recibo</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalBotaoCancelarBtn}
                 onPress={() => setModalValorVisivel(false)}
               >
                 <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBotao, styles.modalBotaoConfirmar]}
-                onPress={confirmarValor}
-              >
-                <Text style={styles.modalBotaoTexto}>Confirmar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        visible={modalTransferenciaVisivel}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setModalTransferenciaVisivel(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitulo}>Transferir Saldo</Text>
-            <Text style={styles.modalLabel}>Origem</Text>
-            <ScrollView style={styles.pickerLista} nestedScrollEnabled>
-              {envelopes.map(env => (
-                <TouchableOpacity
-                  key={env.id}
-                  style={[styles.pickerItem, envelopeOrigem?.id === env.id && styles.pickerItemSelecionado]}
-                  onPress={() => setEnvelopeOrigem(env)}
-                >
-                  <Text style={styles.pickerItemTexto}>{env.nome} — R$ {env.saldo ?? 0}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <Text style={styles.modalLabel}>Destino</Text>
-            <ScrollView style={styles.pickerLista} nestedScrollEnabled>
-              {envelopes.map(env => (
-                <TouchableOpacity
-                  key={env.id}
-                  style={[styles.pickerItem, envelopeDestino?.id === env.id && styles.pickerItemSelecionado]}
-                  onPress={() => setEnvelopeDestino(env)}
-                >
-                  <Text style={styles.pickerItemTexto}>{env.nome} — R$ {env.saldo ?? 0}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Valor a transferir (ex: 50.00)"
-              value={inputValorTransferencia}
-              onChangeText={setInputValorTransferencia}
-              keyboardType="numeric"
-            />
-            <View style={styles.modalBotoes}>
-              <TouchableOpacity
-                style={[styles.modalBotao, styles.modalBotaoCancelar]}
-                onPress={() => setModalTransferenciaVisivel(false)}
-              >
-                <Text style={styles.modalBotaoCancelarTexto}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalBotao, styles.modalBotaoConfirmar]}
-                onPress={confirmarTransferencia}
-              >
-                <Text style={styles.modalBotaoTexto}>Confirmar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -682,19 +625,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     marginBottom: spacing.lg,
   },
-  modalBotoes: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.md,
-  },
-  modalBotao: {
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.sm,
-  },
-  modalBotaoCancelar: {
-    backgroundColor: colors.gray200,
-  },
   modalBotaoConfirmar: {
     backgroundColor: colors.brand,
   },
@@ -708,30 +638,27 @@ const styles = StyleSheet.create({
     fontSize: typography.base,
     fontWeight: typography.semibold,
   },
-  modalLabel: {
-    fontSize: typography.sm,
-    fontWeight: typography.semibold,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+  modalBotoesColuna: {
+    gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  pickerLista: {
-    maxHeight: 110,
+  modalBotaoLargo: {
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  modalBotaoSecundario: {
+    backgroundColor: colors.surfaceAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
-    marginBottom: spacing.sm,
   },
-  pickerItem: {
-    padding: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+  modalBotaoSecundarioTexto: {
+    color: colors.textSecondary,
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
   },
-  pickerItemSelecionado: {
-    backgroundColor: colors.brandLight,
-  },
-  pickerItemTexto: {
-    fontSize: typography.sm,
-    color: colors.textPrimary,
+  modalBotaoCancelarBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
   },
 });
