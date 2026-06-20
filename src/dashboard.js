@@ -81,6 +81,27 @@ export default function Dashboard({ envelopes, userData }) {
         </View>
       </View>
 
+      {envelopes.length > 0 && (
+        <View style={styles.secaoGrafico}>
+          <Text style={styles.secaoGraficoTitulo}>Orçado vs Gasto</Text>
+          {envelopes.map(item => {
+            const gasto = (item.orcamento ?? 0) - (item.saldo ?? 0);
+            const orcamento = item.orcamento ?? 0;
+            return (
+              <View key={item.id} style={styles.graficoItem}>
+                <View style={styles.graficoHeader}>
+                  <Text style={styles.graficoNome} numberOfLines={1}>{item.nome}</Text>
+                  <Text style={styles.graficoValores}>
+                    R$ {gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / R$ {orcamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+                <BarraProgresso gasto={gasto} total={orcamento} />
+              </View>
+            );
+          })}
+        </View>
+      )}
+
       {qtdEnvelopes === 0 && (
         <View style={styles.vazio}>
           <Text style={styles.vazioIcone}>📋</Text>
@@ -220,5 +241,39 @@ const styles = StyleSheet.create({
     fontSize: typography.sm,
     color: colors.textMuted,
     textAlign: 'center',
+  },
+
+  secaoGrafico: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.base,
+    marginBottom: spacing.lg,
+    ...shadow.card,
+  },
+  secaoGraficoTitulo: {
+    fontSize: typography.sm,
+    fontWeight: typography.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  graficoItem: {
+    marginBottom: spacing.md,
+  },
+  graficoHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  graficoNome: {
+    flex: 1,
+    fontSize: typography.sm,
+    color: colors.textPrimary,
+    fontWeight: typography.medium,
+    marginRight: spacing.sm,
+  },
+  graficoValores: {
+    fontSize: typography.xs,
+    color: colors.textSecondary,
   },
 });
