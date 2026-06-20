@@ -20,6 +20,11 @@ import {
   buscarContaPorId,
   upsertContaDoFirebase,
   contaParaPayload,
+  inserirTransacaoLocal,
+  buscarTransacoesLocais,
+  deletarTransacao,
+  upsertTransacaoDoFirebase,
+  transacaoParaPayload,
 } from './database';
 import { sincronizar } from './sync';
 
@@ -182,39 +187,76 @@ export const removerEnvelope = async (id) => {
   }
 };
 
-export const registrarDespesa = async (id, valorDespesa, saldoAtual, reciboBase64) => {
+// REMOVIDO — sem efeito com saldo derivado. UI e importação serão removidos no Passo 6.
+export const transferirSaldo = async () => {
+  console.warn('[storage] transferirSaldo removida — será reimplementada como moverOrcamento no item 10');
+};
+
+// ─── Transações ───────────────────────────────────────────────────────────────
+
+export const criarTransacao = async ({ envelope_id, valor, descricao, recibo_base64, localizacao }) => {
   try {
-    const campos = {
-      saldo: saldoAtual - valorDespesa,
-      valor_despesa: valorDespesa,
-      recibo_base64: reciboBase64 ?? null,
+    const now = new Date().toISOString();
+    const id = gerarId();
+    const transacao = {
+      id,
+      envelope_id,
+      valor,
+      descricao: descricao ?? null,
+      recibo_base64: recibo_base64 ?? null,
+      localizacao: localizacao ?? null,
+      synced: 0,
+      created_at: now,
+      updated_at: now,
     };
-    await atualizarEnvelopeLocal(id, campos);
-    const row = await buscarEnvelopePorId(id);
-    if (row) {
-      await adicionarNaFila('UPDATE', envelopeParaPayload(row));
-      sincronizar().catch(() => {});
-    }
+    await inserirTransacaoLocal(transacao);
+    await adicionarNaFila('CREATE', transacaoParaPayload(transacao));
+    sincronizar().catch(() => {});
+    return id;
   } catch (error) {
-    Alert.alert('Erro', 'Erro ao registrar despesa. Tente novamente.');
+    Alert.alert('Erro', 'Erro ao registrar transação. Tente novamente.');
     throw error;
   }
 };
 
-export const transferirSaldo = async (origemId, destinoId, valor, saldoOrigem, saldoDestino) => {
+export const removerTransacao = async (id) => {
   try {
-    await atualizarEnvelopeLocal(origemId, { saldo: saldoOrigem - valor });
-    await atualizarEnvelopeLocal(destinoId, { saldo: saldoDestino + valor });
-
-    const rowOrigem = await buscarEnvelopePorId(origemId);
-    const rowDestino = await buscarEnvelopePorId(destinoId);
-    if (rowOrigem) await adicionarNaFila('UPDATE', envelopeParaPayload(rowOrigem));
-    if (rowDestino) await adicionarNaFila('UPDATE', envelopeParaPayload(rowDestino));
+    await deletarTransacao(id);
+    await adicionarNaFila('DELETE', { tabela: 'transacoes', id });
     sincronizar().catch(() => {});
   } catch (error) {
-    Alert.alert('Erro', 'Erro ao transferir saldo. Tente novamente.');
+    Alert.alert('Erro', 'Erro ao remover transação. Tente novamente.');
     throw error;
   }
+};
+
+export const ouvirTransacoes = (callback) => {
+  buscarTransacoesLocais().then(callback).catch(() => callback([]));
+
+  // guarda (c): path computado UMA VEZ no momento do registro, não a cada callback
+  const userKey = getCurrentUser();
+  const unsubscribe = onValue(
+    ref(db, `users/${userKey}/transacoes`),
+    async (snapshot) => {
+      try {
+        const data = snapshot.val();
+        if (data) {
+          for (const key of Object.keys(data)) {
+            await upsertTransacaoDoFirebase({ id: key, ...data[key] });
+          }
+        }
+        const local = await buscarTransacoesLocais();
+        callback(local);
+      } catch {
+        buscarTransacoesLocais().then(callback).catch(() => callback([]));
+      }
+    },
+    () => {
+      buscarTransacoesLocais().then(callback).catch(() => callback([]));
+    }
+  );
+
+  return unsubscribe;
 };
 
 // ─── Contas ───────────────────────────────────────────────────────────────────

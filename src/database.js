@@ -38,6 +38,18 @@ export async function initDB(userKey) {
       payload TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS transacoes (
+      id TEXT PRIMARY KEY,
+      envelope_id TEXT NOT NULL,
+      valor REAL NOT NULL,
+      descricao TEXT,
+      recibo_base64 TEXT,
+      localizacao TEXT,
+      synced INTEGER DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_transacoes_envelope_id ON transacoes(envelope_id);
   `);
   // Migração: remover coluna deleted se vier do schema anterior
   try {
@@ -76,10 +88,16 @@ export async function inserirEnvelopeLocal(envelope) {
   );
 }
 
+// Saldo é derivado: orcamento − soma das transações do envelope
 export async function buscarEnvelopesLocais() {
   const d = getDB();
   const rows = await d.getAllAsync(
-    `SELECT * FROM envelopes ORDER BY created_at DESC`
+    `SELECT e.*,
+       (e.orcamento - COALESCE(SUM(t.valor), 0)) AS saldo
+     FROM envelopes e
+     LEFT JOIN transacoes t ON t.envelope_id = e.id
+     GROUP BY e.id
+     ORDER BY e.created_at DESC`
   );
   return rows.map(r => ({
     ...r,
@@ -123,15 +141,16 @@ export async function upsertEnvelopeDoFirebase(raw) {
   const remoteUpdated = raw.updated_at ?? raw.createdAt ?? '1970-01-01T00:00:00.000Z';
   if (local && new Date(local.updated_at) > new Date(remoteUpdated)) return;
 
+  // saldo não é sincronizado — é derivado via JOIN em buscarEnvelopesLocais
   const envelope = {
     id: raw.id,
     nome: raw.nome ?? '',
     categoria: raw.categoria ?? 'Geral',
     orcamento: raw.orcamento ?? 0,
-    saldo: raw.saldo ?? 0,
-    valor_despesa: raw.valor_despesa ?? raw.valorDespesa ?? null,
-    recibo_base64: raw.recibo_base64 ?? null,
-    localizacao: raw.localizacao ?? null,
+    saldo: 0, // coluna legada; valor real vem do JOIN
+    valor_despesa: null,
+    recibo_base64: null,
+    localizacao: null,
     synced: 1,
     created_at: raw.created_at ?? raw.createdAt ?? new Date().toISOString(),
     updated_at: remoteUpdated,
@@ -174,12 +193,7 @@ export function envelopeParaPayload(row) {
     nome: row.nome,
     categoria: row.categoria,
     orcamento: row.orcamento,
-    saldo: row.saldo,
-    valor_despesa: row.valor_despesa ?? null,
-    recibo_base64: row.recibo_base64 ?? null,
-    localizacao: row.localizacao != null
-      ? (typeof row.localizacao === 'string' ? JSON.parse(row.localizacao) : row.localizacao)
-      : null,
+    // saldo omitido: é derivado de transacoes, não faz sentido sincronizar
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -259,6 +273,87 @@ export function contaParaPayload(row) {
     tipo: row.tipo,
     saldo: row.saldo,
     vencimento: row.vencimento ?? null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+// ─── Transações ───────────────────────────────────────────────────────────────
+
+export async function inserirTransacaoLocal(transacao) {
+  const d = getDB();
+  await d.runAsync(
+    `INSERT OR REPLACE INTO transacoes
+      (id, envelope_id, valor, descricao, recibo_base64, localizacao, synced, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      transacao.id,
+      transacao.envelope_id,
+      transacao.valor,
+      transacao.descricao ?? null,
+      transacao.recibo_base64 ?? null,
+      transacao.localizacao != null ? JSON.stringify(transacao.localizacao) : null,
+      transacao.synced ?? 0,
+      transacao.created_at,
+      transacao.updated_at,
+    ]
+  );
+}
+
+export async function buscarTransacoesLocais() {
+  const d = getDB();
+  const rows = await d.getAllAsync(
+    `SELECT t.*, e.nome AS envelope_nome
+     FROM transacoes t
+     LEFT JOIN envelopes e ON e.id = t.envelope_id
+     ORDER BY t.created_at DESC`
+  );
+  return rows.map(r => ({
+    ...r,
+    localizacao: r.localizacao ? JSON.parse(r.localizacao) : null,
+  }));
+}
+
+export async function deletarTransacao(id) {
+  const d = getDB();
+  await d.runAsync(`DELETE FROM transacoes WHERE id = ?`, [id]);
+}
+
+export async function upsertTransacaoDoFirebase(raw) {
+  const d = getDB();
+  const local = await d.getFirstAsync(
+    `SELECT updated_at FROM transacoes WHERE id = ?`, [raw.id]
+  );
+  const remoteUpdated = raw.updated_at ?? '1970-01-01T00:00:00.000Z';
+  if (local && new Date(local.updated_at) > new Date(remoteUpdated)) return;
+  await inserirTransacaoLocal({
+    ...raw,
+    synced: 1,
+    updated_at: remoteUpdated,
+  });
+}
+
+export async function removerTransacoesAusentesDoFirebase(idsPresentes) {
+  const d = getDB();
+  const locais = await d.getAllAsync(`SELECT id FROM transacoes`);
+  for (const row of locais) {
+    if (!idsPresentes.has(row.id)) {
+      await d.runAsync(`DELETE FROM transacoes WHERE id = ?`, [row.id]);
+    }
+  }
+}
+
+export function transacaoParaPayload(row) {
+  return {
+    tabela: 'transacoes',
+    id: row.id,
+    envelope_id: row.envelope_id,
+    valor: row.valor,
+    descricao: row.descricao ?? null,
+    recibo_base64: row.recibo_base64 ?? null,
+    localizacao: row.localizacao != null
+      ? (typeof row.localizacao === 'string' ? JSON.parse(row.localizacao) : row.localizacao)
+      : null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
