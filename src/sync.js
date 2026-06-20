@@ -16,7 +16,8 @@ async function enviarFilaParaFirebase(userKey) {
     const payload = JSON.parse(item.payload);
     // tabela ausente no payload = envelope (compatibilidade com registros antigos)
     const tabela = payload.tabela ?? 'envelopes';
-    const itemRef = ref(rtdb, `users/${userKey}/${tabela}/${payload.id}`);
+    const path = `users/${userKey}/${tabela}/${payload.id}`;
+    const itemRef = ref(rtdb, path);
     try {
       if (item.operation === 'CREATE' || item.operation === 'UPDATE') {
         await set(itemRef, payload);
@@ -24,7 +25,8 @@ async function enviarFilaParaFirebase(userKey) {
         await remove(itemRef);
       }
       await removerDaFila(item.id);
-    } catch {
+    } catch (e) {
+      console.warn('[sync] erro ao enviar para o RTDB:', path, e);
       break;
     }
   }
