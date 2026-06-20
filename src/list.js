@@ -3,6 +3,7 @@ import {
   StyleSheet,
   View,
   Text,
+  TextInput,
   SectionList,
   TouchableOpacity,
   Modal,
@@ -79,12 +80,25 @@ export default function ListEnvelopes({
 }) {
   const [colapsados, setColapsados] = useState({});
   const [deleteAlvo, setDeleteAlvo] = useState(null); // { id, nome }
+  const [busca, setBusca] = useState('');
 
   const togglePasta = (title) => {
     setColapsados((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
-  const seccoesFiltradas = sections.map((seccao) => ({
+  const termo = busca.trim().toLowerCase();
+  const seccoesComFiltro = termo
+    ? sections
+        .map(seccao => ({
+          ...seccao,
+          data: seccao.data.filter(item =>
+            item.nome.toLowerCase().includes(termo)
+          ),
+        }))
+        .filter(seccao => seccao.data.length > 0)
+    : sections;
+
+  const seccoesFiltradas = seccoesComFiltro.map((seccao) => ({
     ...seccao,
     data: colapsados[seccao.title] ? [] : seccao.data,
   }));
@@ -100,14 +114,26 @@ export default function ListEnvelopes({
 
   return (
     <View style={styles.listContainer}>
+      <TextInput
+        style={styles.buscaInput}
+        placeholder="Buscar envelope..."
+        placeholderTextColor={colors.textMuted}
+        value={busca}
+        onChangeText={setBusca}
+        returnKeyType="search"
+        clearButtonMode="while-editing"
+      />
       <SectionList
         sections={seccoesFiltradas}
         keyExtractor={(item) => item.id}
         stickySectionHeadersEnabled={false}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <Text style={styles.semResultado}>Nenhum envelope encontrado.</Text>
+        }
         renderSectionHeader={({ section: { title } }) => {
           const estaFechado = colapsados[title];
-          const totalItens = sections.find((s) => s.title === title).data.length;
+          const totalItens = seccoesComFiltro.find((s) => s.title === title)?.data.length ?? 0;
 
           return (
             <TouchableOpacity
@@ -198,6 +224,25 @@ export default function ListEnvelopes({
 const styles = StyleSheet.create({
   listContainer: {
     flex: 1,
+  },
+  buscaInput: {
+    marginHorizontal: spacing.xs,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surfaceAlt,
+    fontSize: typography.base,
+    color: colors.textPrimary,
+  },
+  semResultado: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: typography.base,
+    paddingVertical: spacing.xxl,
   },
   listContent: {
     paddingBottom: 32,
