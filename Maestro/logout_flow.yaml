@@ -1,8 +1,8 @@
-appId: com.example.app
+appId: com.anonymous.pocketenvelopes
 ---
 - launchApp:
     clearState: true
-- runFlow: "envelope_fluxo.yaml"
+- runFlow: "login_flow.yaml"
 - tapOn:
     point: 84%,8%
 - tapOn:

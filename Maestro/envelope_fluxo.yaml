@@ -17,14 +17,4 @@ appId: com.anonymous.pocketenvelopes
 - tapOn: "Orçamento (ex: 500)"
 - inputText: "500"
 - tapOn: "Adicionar Novo Envelope"
-- doubleTapOn: "⇄ Transferir"
-- tapOn:
-    text: "Internet — R$ 500"
-    index: -1
-- tapOn: "Valor a transferir (ex: 50.00)"
-- inputText: "50"
-- tapOn: "Confirmar"
-- tapOn: "✕"
-- tapOn:
-    text: "✕"
-    index: 1
+- tapOn: "🏦, Contas"

@@ -11,9 +11,15 @@ appId: com.anonymous.pocketenvelopes
 - inputText: ${password}
 - tapOn: "Confirmar Senha"
 - inputText: ${password}
+- tapOn:
+    id: "0_resource_name_obfuscated"
+    index: 50
 - doubleTapOn: "Cadastrar"
 - doubleTapOn: "E-mail"
 - inputText: ${email}
 - tapOn: "Senha"
 - inputText: ${password}
+- tapOn:
+    id: "0_resource_name_obfuscated"
+    index: 50
 - tapOn: "Entrar"
